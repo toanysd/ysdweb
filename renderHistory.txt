@@ -1,0 +1,48 @@
+renderHistoryTab() {
+      if (!this.currentItem) return `<p class="no-data">No item selected</p>`;
+
+      const itemId = (this.currentItemType === 'mold') ? (this.currentItem.MoldID || '') : (this.currentItem.CutterID || '');
+      const kind = (this.currentItemType === 'mold') ? 'MOLD' : 'CUTTER';
+
+      const statusHistory = this.getStatusHistory(itemId, kind);
+      const locationHistory = this.getLocationHistory(itemId, kind);
+      const shipHistory = this.getShipHistory(itemId, kind);
+      const teflonHistory = (this.currentItemType === 'mold') ? this.getTeflonHistory(itemId) : [];
+
+      const timeline = this.mergeHistoryTimeline(statusHistory, locationHistory, shipHistory, teflonHistory);
+
+      if (timeline.length === 0) {
+        return `
+          <div class="modal-section">
+            <div class="section-header"><i class="fas fa-history"></i><span>Lịch sử / 履歴</span></div>
+            <p class="no-data">Không có dữ liệu</p>
+          </div>
+        `;
+      }
+
+      let html = `
+        <div class="modal-section">
+          <div class="section-header"><i class="fas fa-history"></i><span>Lịch sử (${timeline.length}) / 履歴</span></div>
+          <div class="history-timeline">
+      `;
+
+      timeline.forEach(entry => {
+        const icon = this.getHistoryIcon(entry.type);
+        const label = this.getHistoryTypeLabel(entry.type);
+        html += `
+          <div class="timeline-item" data-type="${this.escapeHtml(entry.type)}">
+            <div class="timeline-icon"><i class="fas ${icon}"></i></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-type">${this.escapeHtml(label)}</span>
+                <span class="timeline-date">${this.escapeHtml(this.formatDate(entry.timestamp || ''))}</span>
+              </div>
+              <div class="timeline-body">${this.formatHistoryDetail(entry)}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+      return html;
+    }
