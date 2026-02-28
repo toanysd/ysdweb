@@ -1,0 +1,828 @@
+/* ============================================================================
+   checkin-checkout-v8.4.5-3.css
+   MoldCutterSearch - Check-in / Check-out Modal
+
+   Mục tiêu (theo yêu cầu 2026-02-28):
+   - Bắt buộc song ngữ Nhật/Việt cho toàn bộ nội dung (2 dòng: JP trên, VI dưới).
+   - Mobile tối ưu thao tác 1 tay:
+       1) Thông tin đối tượng (trên cùng)
+       2) Lịch sử (ở giữa, cho phép cuộn)
+       3) Nhập thông tin (dock cố định dưới cùng, không cuộn, đủ trường + nút)
+   - Không inline style; toàn bộ style nằm trong file CSS.
+   - Không ảnh hưởng CSS toàn site: scope chặt trong #cio-panel và #cio-backdrop.
+
+   Lưu ý: JS v8.4.5-3 sẽ render HTML tương thích với các class dưới đây.
+============================================================================ */
+
+/* =============================
+   0) TOKENS / THEME (Scoped)
+============================= */
+:where(#cio-panel, .cio-panel) {
+  --cio-font: "Inter", "Be Vietnam Pro", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, -apple-system,
+    "Segoe UI", Roboto, Arial, sans-serif;
+
+  --cio-z-backdrop: 500000;
+  --cio-z-panel: 500001;
+  --cio-z-dock: 500002;
+
+  --cio-surface: var(--ui-surface, #ffffff);
+  --cio-surface-2: var(--ui-surface-2, #f8fafc);
+  --cio-text: var(--text-primary, #0b1220);
+  --cio-text-2: var(--text-secondary, #1f2937);
+  --cio-muted: var(--text-muted, #64748b);
+  --cio-border: var(--ui-border, rgba(2, 6, 23, 0.10));
+
+  --cio-accent: var(--ui-accent, #0f766e);
+  --cio-accent-hover: var(--ui-accent-hover, #0a5c56);
+
+  --cio-success: var(--ui-success, #16a34a);
+  --cio-danger: var(--ui-danger, #ef4444);
+  --cio-warning: var(--ui-warning, #f59e0b);
+  --cio-info: var(--ui-info, #0ea5e9);
+
+  --cio-shadow: 0 14px 34px rgba(2, 6, 23, 0.14);
+  --cio-shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.10);
+
+  --cio-r: 14px;
+  --cio-gap: 10px;
+  --cio-pad: 12px;
+
+  --cio-dock-maxw: 1400px;
+  --cio-dock-minh: 176px; /* đủ trường + nút, không cuộn */
+  --cio-dock-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Bảo vệ FontAwesome (không làm hỏng icon) */
+:where(#cio-panel, .cio-panel) .fa,
+:where(#cio-panel, .cio-panel) .fas,
+:where(#cio-panel, .cio-panel) .far,
+:where(#cio-panel, .cio-panel) .fal,
+:where(#cio-panel, .cio-panel) .fab,
+:where(#cio-panel, .cio-panel) i[class^="fa"],
+:where(#cio-panel, .cio-panel) i[class*=" fa-"],
+:where(#cio-panel, .cio-panel) span[class^="fa"],
+:where(#cio-panel, .cio-panel) span[class*=" fa-"] {
+  font-family: var(--fa-font-solid, "Font Awesome 6 Free", "Font Awesome 5 Free") !important;
+}
+:where(#cio-panel, .cio-panel) .far,
+:where(#cio-panel, .cio-panel) .fa-regular {
+  font-family: var(--fa-font-regular, "Font Awesome 6 Free", "Font Awesome 5 Free") !important;
+  font-weight: 400 !important;
+}
+:where(#cio-panel, .cio-panel) .fab,
+:where(#cio-panel, .cio-panel) .fa-brands {
+  font-family: var(--fa-font-brands, "Font Awesome 6 Brands") !important;
+}
+:where(#cio-panel, .cio-panel) .fas,
+:where(#cio-panel, .cio-panel) .fa-solid {
+  font-weight: 900 !important;
+}
+
+/* =============================
+   1) BACKDROP + PANEL
+============================= */
+#cio-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: var(--cio-z-backdrop);
+}
+
+#cio-panel {
+  position: fixed;
+  inset: 0;
+  z-index: var(--cio-z-panel);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  font-family: var(--cio-font);
+  color: var(--cio-text);
+  background: var(--cio-surface);
+}
+
+@media (min-width: 901px) {
+  #cio-panel {
+    inset: 5vh 2vw;
+    border: 1px solid var(--cio-border);
+    border-radius: var(--cio-r);
+    box-shadow: var(--cio-shadow);
+    max-width: 1400px;
+    max-height: 920px;
+    margin: auto;
+  }
+}
+
+/* =============================
+   2) HEADER (song ngữ)
+============================= */
+#cio-panel .cio-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 10px 12px;
+  color: #fff;
+  user-select: none;
+  touch-action: pan-y;
+}
+#cio-panel .cio-header.check-in {
+  background: linear-gradient(135deg, var(--cio-success), #0f8a4a);
+}
+#cio-panel .cio-header.check-out {
+  background: linear-gradient(135deg, var(--cio-danger), #c81e1e);
+}
+
+#cio-panel .cio-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+#cio-panel .cio-title .ja {
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#cio-panel .cio-title .vi {
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.95;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cio-panel .cio-header-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#cio-panel .cio-icon-btn {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-radius: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 950;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+#cio-panel .cio-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+#cio-panel .cio-icon-btn:active {
+  transform: translateY(0);
+}
+
+/* =============================
+   3) BODY LAYOUT
+============================= */
+#cio-panel .cio-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(540px, 1fr) 460px;
+  gap: var(--cio-gap);
+
+  background: var(--cio-surface-2);
+  padding: var(--cio-gap);
+  overflow: hidden;
+}
+
+/* Desktop: trái là lịch sử + đối tượng, phải là dock nhập liệu (không fixed) */
+#cio-panel .cio-left,
+#cio-panel .cio-right {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cio-gap);
+}
+
+#cio-panel .cio-card {
+  background: var(--cio-surface);
+  border: 1px solid var(--cio-border);
+  border-radius: var(--cio-r);
+  box-shadow: var(--cio-shadow-sm);
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#cio-panel .cio-card-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cio-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.02), transparent);
+}
+
+#cio-panel .cio-card-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+#cio-panel .cio-card-title .ja {
+  font-size: 13px;
+  font-weight: 950;
+}
+#cio-panel .cio-card-title .vi {
+  font-size: 10px;
+  font-weight: 900;
+  opacity: 0.78;
+  color: var(--cio-muted);
+}
+
+/* =============================
+   4) SONG NGỮ (học theo DetailPanel)
+============================= */
+#cio-panel .dp-label-jp,
+#cio-panel .dp-label-vi {
+  display: block;
+  line-height: 1.15;
+}
+#cio-panel .dp-label-jp {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--cio-text-2);
+}
+#cio-panel .dp-label-vi {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.72;
+  color: var(--cio-muted);
+}
+
+#cio-panel .cio-bi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.1;
+}
+
+/* =============================
+   5) THÔNG TIN ĐỐI TƯỢNG (compact 2 cột)
+============================= */
+#cio-panel .cio-object-body {
+  padding: 10px 12px;
+}
+
+#cio-panel .cio-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+#cio-panel .cio-info-item {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+#cio-panel .cio-info-label {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+#cio-panel .cio-info-value {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--cio-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#cio-panel .cio-info-value.clamp2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+#cio-panel .cio-kchip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(2, 6, 23, 0.04);
+  color: rgba(15, 23, 42, 0.85);
+  font-weight: 950;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#cio-panel .cio-kchip.ok {
+  border-color: rgba(22, 163, 74, 0.30);
+  background: rgba(22, 163, 74, 0.12);
+  color: #14532d;
+}
+#cio-panel .cio-kchip.warn {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+}
+#cio-panel .cio-kchip.bad {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.10);
+  color: #7f1d1d;
+}
+
+@media (max-width: 520px) {
+  #cio-panel .cio-info-item {
+    grid-template-columns: 105px minmax(0, 1fr);
+  }
+}
+
+/* =============================
+   6) LỊCH SỬ (scroll)
+============================= */
+#cio-panel .cio-history-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+#cio-panel .cio-search {
+  width: 100%;
+  max-width: 520px;
+  min-width: 180px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 2px solid rgba(245, 158, 11, 0.55);
+  background: #fff7db;
+  font-weight: 900;
+  color: var(--cio-text);
+}
+#cio-panel .cio-search:focus {
+  outline: none;
+  border-color: var(--cio-warning);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.20);
+  background: var(--cio-surface);
+}
+
+#cio-panel .cio-lock {
+  flex: 0 0 auto;
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: rgba(79, 70, 229, 0.10);
+  color: rgba(11, 18, 32, 0.92);
+  font-weight: 950;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+#cio-panel .cio-lock:hover {
+  background: rgba(79, 70, 229, 0.16);
+}
+
+#cio-panel .cio-history-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: var(--cio-surface);
+}
+
+#cio-panel .cio-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: var(--cio-surface);
+}
+
+#cio-panel .cio-history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--cio-accent);
+  color: #fff;
+  text-align: left;
+  padding: 8px 8px;
+  white-space: nowrap;
+  font-weight: 950;
+  font-size: 11px;
+}
+#cio-panel .cio-history-table thead th:hover {
+  background: var(--cio-accent-hover);
+}
+
+#cio-panel .cio-thbi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.05;
+}
+#cio-panel .cio-thbi .dp-label-jp,
+#cio-panel .cio-thbi .dp-label-vi {
+  color: rgba(255, 255, 255, 0.95);
+}
+#cio-panel .cio-thbi .dp-label-vi {
+  opacity: 0.85;
+}
+
+#cio-panel .cio-history-table tbody td {
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(2, 6, 23, 0.08);
+  vertical-align: middle;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cio-panel .cio-history-table tbody tr:nth-child(odd) {
+  background: rgba(2, 6, 23, 0.02);
+}
+#cio-panel .cio-history-table tbody tr:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+#cio-panel .cio-note-cell {
+  max-width: 360px;
+}
+
+#cio-panel .cio-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 950;
+  font-size: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(0, 0, 0, 0.03);
+  min-width: 46px;
+}
+#cio-panel .cio-b-in {
+  border-color: rgba(22, 163, 74, 0.30);
+  background: rgba(22, 163, 74, 0.12);
+  color: #14532d;
+}
+#cio-panel .cio-b-out {
+  border-color: rgba(239, 68, 68, 0.30);
+  background: rgba(239, 68, 68, 0.10);
+  color: #7f1d1d;
+}
+#cio-panel .cio-b-audit {
+  border-color: rgba(2, 132, 199, 0.30);
+  background: rgba(2, 132, 199, 0.10);
+  color: #075985;
+}
+#cio-panel .cio-b-unknown {
+  border-color: rgba(100, 116, 139, 0.30);
+  background: rgba(100, 116, 139, 0.10);
+  color: #334155;
+}
+
+#cio-panel .cio-sync-dot {
+  font-weight: 950;
+  font-size: 14px;
+  display: inline-block;
+}
+#cio-panel .cio-sync-dot.synced { color: var(--cio-success); }
+#cio-panel .cio-sync-dot.pending { color: var(--cio-warning); animation: cioPulse 1.5s ease-in-out infinite; }
+#cio-panel .cio-sync-dot.error { color: var(--cio-danger); }
+
+@keyframes cioPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+#cio-panel .cio-delete-btn {
+  border: none;
+  background: none;
+  color: var(--cio-danger);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 950;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+#cio-panel .cio-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.10);
+  transform: scale(1.05);
+}
+
+/* =============================
+   7) NHẬP THÔNG TIN (Dock)
+============================= */
+#cio-panel .cio-dock {
+  background: linear-gradient(to top, rgba(248, 250, 252, 1), rgba(255, 255, 255, 1));
+  border-top: 1px solid var(--cio-border);
+}
+
+#cio-panel .cio-grabber {
+  width: 44px;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(2, 6, 23, 0.18);
+  margin: 8px auto 6px auto;
+}
+
+#cio-panel .cio-dock-inner {
+  padding: 8px 12px calc(10px + var(--cio-dock-safe-bottom)) 12px;
+  display: grid;
+  gap: 10px;
+}
+
+#cio-panel .cio-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#cio-panel .cio-mode-btn {
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  border-radius: 12px;
+  padding: 10px 10px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.05;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+#cio-panel .cio-mode-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.10);
+}
+#cio-panel .cio-mode-btn:active { transform: translateY(0); }
+
+#cio-panel .cio-mode-btn .dp-label-jp { font-size: 12px; font-weight: 950; color: var(--cio-text); }
+#cio-panel .cio-mode-btn .dp-label-vi { font-size: 10px; font-weight: 900; color: var(--cio-muted); opacity: 0.90; }
+
+#cio-panel .cio-mode-btn.btn-in {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: rgba(22, 163, 74, 0.10);
+}
+#cio-panel .cio-mode-btn.btn-out {
+  border-color: rgba(239, 68, 68, 0.24);
+  background: rgba(239, 68, 68, 0.08);
+}
+#cio-panel .cio-mode-btn.btn-in.active {
+  border-color: rgba(22, 163, 74, 0.55);
+  background: rgba(22, 163, 74, 0.18);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+#cio-panel .cio-mode-btn.btn-out.active {
+  border-color: rgba(239, 68, 68, 0.50);
+  background: rgba(239, 68, 68, 0.14);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+#cio-panel .cio-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#cio-panel .cio-field {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+#cio-panel .cio-field.full {
+  grid-column: 1 / -1;
+}
+
+#cio-panel .cio-label {
+  font-weight: 950;
+  color: var(--cio-text);
+  font-size: 12px;
+}
+
+#cio-panel .cio-control {
+  width: 100%;
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  border-radius: 12px;
+  padding: 10px 10px;
+  font-weight: 900;
+  font-size: 13px;
+  background: var(--cio-surface);
+  color: var(--cio-text);
+}
+
+#cio-panel .cio-control:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.55);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.20);
+}
+
+#cio-panel .cio-default-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+#cio-panel .cio-default-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 12px;
+  color: var(--cio-text);
+  user-select: none;
+}
+
+#cio-panel .cio-default-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cio-accent);
+}
+
+#cio-panel .cio-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+#cio-panel .cio-act {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 10px;
+  font-weight: 950;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+#cio-panel .cio-act:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.12);
+}
+#cio-panel .cio-act:active { transform: translateY(0); }
+
+#cio-panel .cio-act .dp-label-jp { font-size: 12px; font-weight: 950; }
+#cio-panel .cio-act .dp-label-vi { font-size: 10px; font-weight: 900; opacity: 0.95; }
+
+#cio-panel .cio-act.cancel { background: rgba(100, 116, 139, 0.14); color: #0b1220; }
+#cio-panel .cio-act.relocate { background: rgba(245, 158, 11, 0.92); color: #fff; }
+#cio-panel .cio-act.save { background: rgba(15, 118, 110, 0.96); color: #fff; }
+
+#cio-panel .cio-required-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cio-danger);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+#cio-panel .hidden { display: none !important; }
+
+/* =============================
+   8) MOBILE - 1 tay + Dock cố định
+============================= */
+@media (max-width: 900px) {
+  #cio-panel {
+    border-radius: 0;
+  }
+
+  #cio-panel .cio-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cio-gap);
+    padding: 10px;
+
+    /* Chừa chỗ cho dock (không che nội dung) */
+    padding-bottom: calc(var(--cio-dock-minh) + 14px + var(--cio-dock-safe-bottom));
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Mobile order: Object -> History -> (Dock fixed bottom) */
+  #cio-panel .cio-left { order: 1; }
+  #cio-panel .cio-right { order: 2; }
+
+  /* Trên mobile: dùng .cio-left để chứa Object + History; .cio-right có thể trống */
+  #cio-panel .cio-left,
+  #cio-panel .cio-right {
+    gap: var(--cio-gap);
+  }
+
+  /* Lịch sử luôn có vùng cuộn riêng (khi table dài) */
+  #cio-panel .cio-history-wrap {
+    max-height: 42vh;
+  }
+
+  /* Dock cố định sát đáy (1 tay) */
+  #cio-panel .cio-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--cio-z-dock);
+
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    box-shadow: 0 -12px 28px rgba(2, 6, 23, 0.16);
+  }
+
+  /* Dock không vượt quá panel khi panel là full-screen */
+  #cio-panel .cio-dock-inner {
+    max-width: var(--cio-dock-maxw);
+    margin: 0 auto;
+  }
+
+  /* Form: 2 cột nhưng ưu tiên đủ trường không cuộn */
+  #cio-panel .cio-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Nút thao tác to hơn chút để bấm dễ */
+  #cio-panel .cio-act {
+    min-height: 46px;
+  }
+
+  /* Table header không bị che bởi dock khi cuộn body */
+  #cio-panel .cio-history-table thead th {
+    top: 0;
+  }
+}
+
+/* =============================
+   9) DESKTOP - dock là card bên phải
+============================= */
+@media (min-width: 901px) {
+  #cio-panel .cio-dock {
+    position: relative;
+    border-radius: var(--cio-r);
+    box-shadow: var(--cio-shadow-sm);
+    border: 1px solid var(--cio-border);
+    overflow: hidden;
+  }
+
+  #cio-panel .cio-dock .cio-grabber {
+    display: none;
+  }
+
+  #cio-panel .cio-dock-inner {
+    padding: 12px;
+  }
+
+  #cio-panel .cio-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =============================
+   10) GIẢM CHUYỂN ĐỘNG
+============================= */
+@media (prefers-reduced-motion: reduce) {
+  #cio-panel .cio-icon-btn,
+  #cio-panel .cio-mode-btn,
+  #cio-panel .cio-act {
+    transition: none !important;
+  }
+
+  #cio-panel .cio-sync-dot.pending {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,851 @@
+/* ============================================================================
+   checkin-checkout-v8.4.5-4.css
+   MoldCutterSearch - Check-in / Check-out Popup (Hero + Input + History)
+
+   Spec (2026-02-28):
+   - Toàn bộ song ngữ Nhật/Việt (2 dòng: JP trên, VI dưới).
+   - Popup gọn theo flow nghiệp vụ: Hero (info tối thiểu) + Nhập liệu + Lịch sử.
+   - Desktop giữ bố cục như bản trước:
+       Left: History
+       Right: (Hero + Input)
+       Bottom: Action bar bám đáy popup, overlay blur.
+       Overlay backdrop làm mờ nền khi popup mở.
+   - Mobile: cho phép cuộn dọc toàn màn hình; nhóm 1 (Hero) + 2 (Input) phải hiển thị đầy đủ khi mở.
+   - Lịch sử có lock/unlock (mặc định lock).
+   - Badge Giá - Tầng: Giá badge tròn, Tầng badge chữ nhật/bo góc, màu khác nhau.
+   - Kích thước nổi bật hơn.
+   - Không inline style.
+
+   NOTE: JS v8.4.5-4 phải render HTML tương thích với class dưới đây.
+============================================================================ */
+
+/* =============================
+   0) TOKENS / THEME (Scoped)
+============================= */
+:where(#cio-panel, .cio-panel) {
+  --cio-font: "Inter", "Be Vietnam Pro", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, -apple-system,
+    "Segoe UI", Roboto, Arial, sans-serif;
+
+  --cio-z-backdrop: 500000;
+  --cio-z-panel: 500001;
+  --cio-z-sticky: 500002;
+
+  --cio-surface: var(--ui-surface, #ffffff);
+  --cio-surface-2: var(--ui-surface-2, #f8fafc);
+  --cio-surface-3: rgba(241, 245, 249, 0.92);
+
+  --cio-text: var(--text-primary, #0b1220);
+  --cio-text-2: var(--text-secondary, #1f2937);
+  --cio-muted: var(--text-muted, #64748b);
+
+  --cio-border: var(--ui-border, rgba(2, 6, 23, 0.10));
+  --cio-focus: var(--ui-accent, #0f766e);
+
+  --cio-success: var(--ui-success, #16a34a);
+  --cio-danger: var(--ui-danger, #ef4444);
+  --cio-warning: var(--ui-warning, #f59e0b);
+  --cio-info: var(--ui-info, #0ea5e9);
+
+  /* Hero type colors (match existing design spirit) */
+  --cio-mold: var(--mold-color, #0891b2);
+  --cio-mold-2: #0e7490;
+  --cio-cutter: var(--cutter-color, #ea580c);
+  --cio-cutter-2: #9a3412;
+
+  --cio-shadow: 0 18px 48px rgba(2, 6, 23, 0.18);
+  --cio-shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.10);
+
+  --cio-r: 14px;
+  --cio-gap: 10px;
+  --cio-pad: 12px;
+
+  --cio-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Bảo vệ FontAwesome (không làm hỏng icon) */
+:where(#cio-panel, .cio-panel) .fa,
+:where(#cio-panel, .cio-panel) .fas,
+:where(#cio-panel, .cio-panel) .far,
+:where(#cio-panel, .cio-panel) .fal,
+:where(#cio-panel, .cio-panel) .fab,
+:where(#cio-panel, .cio-panel) i[class^="fa"],
+:where(#cio-panel, .cio-panel) i[class*=" fa-"],
+:where(#cio-panel, .cio-panel) span[class^="fa"],
+:where(#cio-panel, .cio-panel) span[class*=" fa-"] {
+  font-family: var(--fa-font-solid, "Font Awesome 6 Free", "Font Awesome 5 Free") !important;
+}
+:where(#cio-panel, .cio-panel) .far,
+:where(#cio-panel, .cio-panel) .fa-regular {
+  font-family: var(--fa-font-regular, "Font Awesome 6 Free", "Font Awesome 5 Free") !important;
+  font-weight: 400 !important;
+}
+:where(#cio-panel, .cio-panel) .fab,
+:where(#cio-panel, .cio-panel) .fa-brands {
+  font-family: var(--fa-font-brands, "Font Awesome 6 Brands") !important;
+}
+:where(#cio-panel, .cio-panel) .fas,
+:where(#cio-panel, .cio-panel) .fa-solid {
+  font-weight: 900 !important;
+}
+
+/* =============================
+   1) BACKDROP (overlay)
+============================= */
+#cio-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(2px) saturate(0.92);
+  z-index: var(--cio-z-backdrop);
+}
+
+/* =============================
+   2) PANEL CONTAINER
+============================= */
+#cio-panel {
+  position: fixed;
+  inset: 0;
+  z-index: var(--cio-z-panel);
+
+  background: var(--cio-surface);
+  color: var(--cio-text);
+  font-family: var(--cio-font);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (min-width: 901px) {
+  #cio-panel {
+    inset: 5vh 2vw;
+    max-width: 1400px;
+    max-height: 920px;
+    margin: auto;
+
+    border: 1px solid var(--cio-border);
+    border-radius: var(--cio-r);
+    box-shadow: var(--cio-shadow);
+  }
+}
+
+/* =============================
+   3) HEADER (song ngữ)
+============================= */
+#cio-panel .cio-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 10px 12px;
+  color: #fff;
+  user-select: none;
+}
+#cio-panel .cio-header.check-in {
+  background: linear-gradient(135deg, var(--cio-success), #0f8a4a);
+}
+#cio-panel .cio-header.check-out {
+  background: linear-gradient(135deg, var(--cio-danger), #c81e1e);
+}
+
+#cio-panel .cio-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+#cio-panel .cio-title .ja {
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#cio-panel .cio-title .vi {
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.95;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cio-panel .cio-header-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#cio-panel .cio-icon-btn {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-radius: 12px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-weight: 950;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+#cio-panel .cio-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+#cio-panel .cio-icon-btn:active { transform: translateY(0); }
+
+/* =============================
+   4) SONG NGỮ (DetailPanel style)
+============================= */
+#cio-panel .dp-label-jp,
+#cio-panel .dp-label-vi {
+  display: block;
+  line-height: 1.15;
+}
+#cio-panel .dp-label-jp {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--cio-text-2);
+}
+#cio-panel .dp-label-vi {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.72;
+  color: var(--cio-muted);
+}
+
+#cio-panel .cio-bi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.1;
+}
+
+/* =============================
+   5) MAIN LAYOUT
+============================= */
+#cio-panel .cio-main {
+  flex: 1 1 auto;
+  min-height: 0;
+
+  background: var(--cio-surface-2);
+  padding: var(--cio-gap);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--cio-gap);
+  overflow: hidden;
+}
+
+/* Desktop grid: left history, right hero+input */
+#cio-panel .cio-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+
+  display: grid;
+  grid-template-columns: minmax(540px, 1fr) 460px;
+  gap: var(--cio-gap);
+  overflow: hidden;
+}
+
+#cio-panel .cio-col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cio-gap);
+}
+
+#cio-panel .cio-card {
+  background: var(--cio-surface);
+  border: 1px solid var(--cio-border);
+  border-radius: var(--cio-r);
+  box-shadow: var(--cio-shadow-sm);
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#cio-panel .cio-card-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cio-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.02), transparent);
+}
+
+#cio-panel .cio-card-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+#cio-panel .cio-card-title .ja { font-size: 13px; font-weight: 950; }
+#cio-panel .cio-card-title .vi { font-size: 10px; font-weight: 900; opacity: 0.78; color: var(--cio-muted); }
+
+/* =============================
+   6) HERO (info tối thiểu)
+============================= */
+#cio-panel .cio-hero {
+  padding: 12px;
+  border-radius: var(--cio-r);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: #fff;
+
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
+  overflow: hidden;
+}
+
+#cio-panel .cio-hero.cio-hero--mold {
+  background: linear-gradient(135deg, var(--cio-mold) 0%, var(--cio-mold-2) 100%);
+}
+#cio-panel .cio-hero.cio-hero--cutter {
+  background: linear-gradient(135deg, var(--cio-cutter) 0%, var(--cio-cutter-2) 100%);
+}
+
+#cio-panel .cio-hero-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+#cio-panel .cio-hero-main { min-width: 0; }
+
+#cio-panel .cio-hero-line1 {
+  font-family: "Courier New", monospace;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.12;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cio-panel .cio-hero-line2 {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.95;
+}
+
+#cio-panel .cio-hero-size {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+
+  font-weight: 950;
+  font-size: 13px;
+  line-height: 1;
+  max-width: 100%;
+}
+
+#cio-panel .cio-hero-size .dp-label-jp,
+#cio-panel .cio-hero-size .dp-label-vi {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+#cio-panel .cio-hero-meta {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+#cio-panel .cio-hero-kv {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+#cio-panel .cio-hero-k {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.1;
+}
+
+#cio-panel .cio-hero-k .dp-label-jp,
+#cio-panel .cio-hero-k .dp-label-vi {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+#cio-panel .cio-hero-v {
+  min-width: 0;
+  font-weight: 950;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: rgba(255, 255, 255, 0.98);
+}
+
+/* Badge Giá - Tầng */
+#cio-panel .cio-racklayer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#cio-panel .cio-badge-rack {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+
+  font-weight: 950;
+  font-size: 13px;
+  line-height: 1;
+}
+
+#cio-panel .cio-badge-layer {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 10px;
+
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(2, 132, 199, 0.16);
+  color: #e6fbff;
+
+  font-weight: 950;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#cio-panel .cio-hero--mold .cio-badge-layer {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+#cio-panel .cio-hero--cutter .cio-badge-layer {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* Status badge */
+#cio-panel .cio-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 950;
+  font-size: 12px;
+  line-height: 1;
+}
+
+#cio-panel .cio-status-chip.is-in { background: rgba(22, 163, 74, 0.18); border-color: rgba(22, 163, 74, 0.35); }
+#cio-panel .cio-status-chip.is-out { background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.35); }
+#cio-panel .cio-status-chip.is-audit { background: rgba(2, 132, 199, 0.16); border-color: rgba(2, 132, 199, 0.35); }
+#cio-panel .cio-status-chip.is-unknown { background: rgba(0, 0, 0, 0.10); border-color: rgba(255, 255, 255, 0.16); }
+
+/* =============================
+   7) INPUT SECTION
+============================= */
+#cio-panel .cio-input-body {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+#cio-panel .cio-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+#cio-panel .cio-label {
+  font-weight: 950;
+  color: var(--cio-text);
+  font-size: 12px;
+}
+
+#cio-panel .cio-control {
+  width: 100%;
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  border-radius: 12px;
+  padding: 10px 10px;
+  font-weight: 900;
+  font-size: 13px;
+  background: var(--cio-surface);
+  color: var(--cio-text);
+}
+
+#cio-panel .cio-control:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.55);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.20);
+}
+
+#cio-panel .cio-default-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 12px;
+  color: var(--cio-text);
+  user-select: none;
+}
+
+#cio-panel .cio-default-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cio-focus);
+}
+
+#cio-panel .cio-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#cio-panel .cio-mode-btn {
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  border-radius: 12px;
+  padding: 10px 10px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.05;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+#cio-panel .cio-mode-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.10);
+}
+#cio-panel .cio-mode-btn:active { transform: translateY(0); }
+
+#cio-panel .cio-mode-btn.btn-in {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: rgba(22, 163, 74, 0.10);
+}
+#cio-panel .cio-mode-btn.btn-out {
+  border-color: rgba(239, 68, 68, 0.24);
+  background: rgba(239, 68, 68, 0.08);
+}
+#cio-panel .cio-mode-btn.btn-in.active {
+  border-color: rgba(22, 163, 74, 0.55);
+  background: rgba(22, 163, 74, 0.18);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+#cio-panel .cio-mode-btn.btn-out.active {
+  border-color: rgba(239, 68, 68, 0.50);
+  background: rgba(239, 68, 68, 0.14);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+#cio-panel .cio-required-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cio-danger);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+#cio-panel .hidden { display: none !important; }
+
+/* =============================
+   8) HISTORY TABLE + LOCK/UNLOCK
+============================= */
+#cio-panel .cio-history-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#cio-panel .cio-history-wrap.locked {
+  overflow-x: hidden;
+}
+#cio-panel .cio-history-wrap.unlocked {
+  overflow-x: auto;
+}
+
+#cio-panel .cio-history-scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+#cio-panel .cio-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: var(--cio-surface);
+}
+
+#cio-panel .cio-history-wrap.unlocked .cio-history-table {
+  width: max-content;
+  min-width: 980px;
+}
+
+#cio-panel .cio-history-wrap.locked .cio-history-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+#cio-panel .cio-history-wrap.unlocked .cio-history-table {
+  table-layout: auto;
+}
+
+#cio-panel .cio-history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--cio-focus);
+  color: #fff;
+  text-align: left;
+  padding: 8px 8px;
+  white-space: nowrap;
+  font-weight: 950;
+  font-size: 11px;
+}
+
+#cio-panel .cio-thbi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.05;
+}
+#cio-panel .cio-thbi .dp-label-jp,
+#cio-panel .cio-thbi .dp-label-vi {
+  color: rgba(255, 255, 255, 0.95);
+}
+#cio-panel .cio-thbi .dp-label-vi { opacity: 0.85; }
+
+#cio-panel .cio-history-table tbody td {
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(2, 6, 23, 0.08);
+  vertical-align: middle;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cio-panel .cio-history-table tbody tr:nth-child(odd) { background: rgba(2, 6, 23, 0.02); }
+#cio-panel .cio-history-table tbody tr:hover { background: rgba(15, 118, 110, 0.08); }
+
+#cio-panel .cio-note-cell { max-width: 360px; }
+
+#cio-panel .cio-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 950;
+  font-size: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(0, 0, 0, 0.03);
+  min-width: 46px;
+}
+#cio-panel .cio-b-in { border-color: rgba(22, 163, 74, 0.30); background: rgba(22, 163, 74, 0.12); color: #14532d; }
+#cio-panel .cio-b-out { border-color: rgba(239, 68, 68, 0.30); background: rgba(239, 68, 68, 0.10); color: #7f1d1d; }
+#cio-panel .cio-b-audit { border-color: rgba(2, 132, 199, 0.30); background: rgba(2, 132, 199, 0.10); color: #075985; }
+#cio-panel .cio-b-unknown { border-color: rgba(100, 116, 139, 0.30); background: rgba(100, 116, 139, 0.10); color: #334155; }
+
+#cio-panel .cio-his-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#cio-panel .cio-tool-btn {
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--cio-text);
+  font-weight: 950;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#cio-panel .cio-tool-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.10);
+}
+#cio-panel .cio-tool-btn:active { transform: translateY(0); }
+
+#cio-panel .cio-search {
+  width: 100%;
+  max-width: 520px;
+  min-width: 180px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 2px solid rgba(245, 158, 11, 0.55);
+  background: #fff7db;
+  font-weight: 900;
+  color: var(--cio-text);
+}
+#cio-panel .cio-search:focus {
+  outline: none;
+  border-color: var(--cio-warning);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.20);
+  background: var(--cio-surface);
+}
+
+/* =============================
+   9) ACTION BAR (bám đáy popup)
+============================= */
+#cio-panel .cio-actionbar {
+  flex: 0 0 auto;
+  padding: 10px 12px calc(10px + var(--cio-safe-bottom)) 12px;
+  border-top: 1px solid rgba(2, 6, 23, 0.10);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px) saturate(1.05);
+
+  position: sticky;
+  bottom: 0;
+  z-index: var(--cio-z-sticky);
+}
+
+#cio-panel .cio-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+#cio-panel .cio-act {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 10px;
+  font-weight: 950;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+#cio-panel .cio-act:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.12);
+}
+#cio-panel .cio-act:active { transform: translateY(0); }
+
+#cio-panel .cio-act.cancel { background: rgba(100, 116, 139, 0.14); color: #0b1220; }
+#cio-panel .cio-act.relocate { background: rgba(245, 158, 11, 0.92); color: #fff; }
+#cio-panel .cio-act.save { background: rgba(15, 118, 110, 0.96); color: #fff; }
+
+#cio-panel .cio-act .dp-label-jp { font-size: 12px; font-weight: 950; }
+#cio-panel .cio-act .dp-label-vi { font-size: 10px; font-weight: 900; opacity: 0.95; }
+
+/* =============================
+   10) RESPONSIVE
+============================= */
+@media (max-width: 900px) {
+  #cio-panel {
+    border-radius: 0;
+  }
+
+  #cio-panel .cio-main {
+    padding: 10px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Mobile: 1 cột; cho cuộn toàn màn hình */
+  #cio-panel .cio-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cio-gap);
+    overflow: visible;
+  }
+
+  /* Không khóa chiều cao history trên mobile để tránh “mất” lịch sử */
+  #cio-panel .cio-history-wrap {
+    overflow: visible;
+  }
+
+  #cio-panel .cio-history-scroll {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Hero + input vẫn gọn để nhìn ngay khi mở */
+  #cio-panel .cio-hero-line1 { font-size: 16px; }
+  #cio-panel .cio-hero-kv { grid-template-columns: 110px minmax(0, 1fr); }
+
+  /* Search full width */
+  #cio-panel .cio-search { max-width: none; }
+
+  /* Actionbar sticky bottom vẫn giữ để thao tác dễ */
+  #cio-panel .cio-actionbar {
+    position: sticky;
+    bottom: 0;
+  }
+
+  /* Nút to hơn chút */
+  #cio-panel .cio-act { min-height: 46px; }
+}
+
+@media (max-width: 520px) {
+  #cio-panel .cio-hero-kv { grid-template-columns: 105px minmax(0, 1fr); }
+  #cio-panel .cio-badge-rack { width: 32px; height: 32px; font-size: 12px; }
+  #cio-panel .cio-badge-layer { height: 28px; font-size: 12px; }
+}
+
+
+
+/* =============================
+   GLOBAL BODY LOCK (chỉ khi popup mở)
+   - Tránh scroll nền khi thao tác modal
+============================= */
+body.cio-modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* =============================
+   11) REDUCE MOTION
+============================= */
+@media (prefers-reduced-motion: reduce) {
+  #cio-panel .cio-icon-btn,
+  #cio-panel .cio-tool-btn,
+  #cio-panel .cio-mode-btn,
+  #cio-panel .cio-act {
+    transition: none !important;
+  }
+}
