@@ -35,7 +35,7 @@ Updated: 2026-03-03
 
   // JP/VI labels
   const ACTIONS = [
-    { key:'inout',     jp:'入出庫',  vi:'Nhập / Xuất', icon:'fas fa-right-left' },
+    { key:'inout',     jp:'入出庫・位置変更',  vi:'Nhập Xuất, Đổi vị trí', icon: 'fas fa-map-marker-alt' },
     { key:'move',      jp:'移動',    vi:'Di chuyển',   icon:'fas fa-map-signs' },
     { key:'inventory', jp:'棚卸',    vi:'Kiểm kê',     icon:'fas fa-clipboard-check' },
     { key:'qr',        jp:'QR',      vi:'Mã QR',       icon:'fas fa-qrcode' },
