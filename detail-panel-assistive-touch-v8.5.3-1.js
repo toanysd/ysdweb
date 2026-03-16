@@ -150,17 +150,31 @@ Updated: 2026-03-03
       detailPanel .dp-assistive-menu .dp-assistive-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
       
       /* Nút trong Assistive Menu */
-      detailPanel .dp-assistive-menu .dp-action-btn { height:48px; border-radius:14px; background:#ffffff; border:1px solid rgba(2,6,23,0.06); box-shadow:0 4px 12px rgba(2,6,23,0.04); display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:12px; padding:6px 12px; cursor:pointer; }
-      detailPanel .dp-assistive-menu .dp-action-btn:active { background:#f8fafc; border-color:rgba(2,6,23,0.12); }
+      detailPanel .dp-assistive-menu .dp-action-btn { height:auto; min-height:52px; border-radius:14px; background:#f8fafc; border:1.5px solid #cbd5e1; box-shadow:0 2px 8px rgba(2,6,23,0.07); display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:10px; padding:8px 12px; cursor:pointer; overflow:hidden; }
+      detailPanel .dp-assistive-menu .dp-action-btn:active { opacity:0.85; }
       
-      detailPanel .dp-assistive-menu .dp-action-btn i { font-size:18px; width:20px; text-align:center; color:rgba(15,23,42,0.7); }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="inout"] i { color:#F59E0B; }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="checkin"] i { color:#10B981; }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="checkout"] i { color:#EF4444; }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="move"] i { color:#F59E0B; }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="inventory"] i { color:#0284C7; }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="qr"] i { color:#2563EB; }
-      detailPanel .dp-assistive-menu .dp-action-btn[data-action="photo"] i { color:#0284C7; }
+      detailPanel .dp-assistive-menu .dp-action-btn i { font-size:18px; width:36px; height:36px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+      detailPanel .dp-assistive-menu .dp-label-group { display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden; line-height:1.2; }
+      detailPanel .dp-assistive-menu .dp-label-jp { font-weight:700; font-size:12px; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+      detailPanel .dp-assistive-menu .dp-label-vi { font-weight:600; font-size:10px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; margin-top:2px; }
+      
+      /* Màu theo loại action - Assistive Menu */
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="inout"] { background:#fff8e1; border-color:#ffc107; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="inout"] i { background:#fff0b3; color:#e65100; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="checkin"] { background:#f0fdf4; border-color:#86efac; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="checkin"] i { background:#dcfce7; color:#15803d; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="checkout"] { background:#fff1f2; border-color:#fda4af; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="checkout"] i { background:#ffe4e6; color:#be123c; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="move"] { background:#fff8e1; border-color:#ffc107; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="move"] i { background:#fff0b3; color:#e65100; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="inventory"] { background:#e0f7fa; border-color:#00bcd4; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="inventory"] i { background:#b2ebf2; color:#00695c; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="qr"] { background:#eff6ff; border-color:#3b82f6; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="qr"] i { background:#dbeafe; color:#1d4ed8; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="photo"] { background:#e0f2fe; border-color:#0284c7; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="photo"] i { background:#bae6fd; color:#075985; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="print"] { background:#f1f5f9; border-color:#94a3b8; }
+      detailPanel .dp-assistive-menu .dp-action-btn[data-action="print"] i { background:#e2e8f0; color:#334155; }
     `;
     document.head.appendChild(st);
   }

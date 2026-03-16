@@ -47,6 +47,8 @@
         // Process tables (optional)
         { key: 'employees', file: 'employees.csv', required: false },
         { key: 'jobs', file: 'jobs.csv', required: false },
+        { key: 'orderhead', file: 'orderhead.csv', required: false },
+        { key: 'orderline', file: 'orderline.csv', required: false },
         { key: 'processingitems', file: 'processingitems.csv', required: false },
         { key: 'processingdeadline', file: 'processingdeadline.csv', required: false },
         { key: 'processingstatus', file: 'processingstatus.csv', required: false },
@@ -97,6 +99,8 @@
         // Process tables (optional)
         { key: 'webemployees', file: 'webemployees.csv', required: false },
         { key: 'webjobs', file: 'webjobs.csv', required: false },
+        { key: 'weborderhead', file: 'weborderhead.csv', required: false },
+        { key: 'weborderline', file: 'weborderline.csv', required: false },
         { key: 'webprocessingitems', file: 'webprocessingitems.csv', required: false },
         { key: 'webprocessingdeadline', file: 'webprocessingdeadline.csv', required: false },
         { key: 'webprocessingstatus', file: 'webprocessingstatus.csv', required: false },
@@ -149,6 +153,9 @@
             teflonlog: [],
             datachangehistory: [],
             accesscommithistory: [],
+            
+            orderhead: [],
+            orderline: [],
 
             processingdeadline: [],
             processingstatus: [],
@@ -178,6 +185,8 @@
             webcompanies: [],
             webemployees: [],
             webjobs: [],
+            weborderhead: [],
+            weborderline: [],
             webprocessingitems: [],
             webdestinations: [],
 
@@ -786,6 +795,8 @@
             d.traysamples = overlayRowByHistory(d.traysamples, d.webtraysamples, 'traysamples', 'TraySampleID');
             
             // --- Bổ sung thêm theo ID_FIELD_PREF ---
+            d.orderhead = overlayRowByHistory(d.orderhead, d.weborderhead, 'orderhead', 'OrderHeadID');
+            d.orderline = overlayRowByHistory(d.orderline, d.weborderline, 'orderline', 'OrderLineID');
             d.worklog = overlayRowByHistory(d.worklog, d.webworklog, 'worklog', 'WorkLogID');
             d.processingdeadline = overlayRowByHistory(d.processingdeadline, d.webprocessingdeadline, 'processingdeadline', 'ProcessingDeadlineID');
             d.processingstatus = overlayRowByHistory(d.processingstatus, d.webprocessingstatus, 'processingstatus', 'ProcessingStatusID');
