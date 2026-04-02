@@ -57,14 +57,11 @@ class ResultsCardRenderer {
             }
         }, true);
 
-        // Chuột phải (contextmenu) vào ảnh thumb -> Bật Action Menu giống nút Action
+        // Chuột phải (contextmenu) vào thẻ -> Bật Action Menu giống nút Action
         document.addEventListener('contextmenu', (e) => {
-            const thumbArea = e.target.closest('.card-thumbnail');
-            if (thumbArea) {
+            const card = e.target.closest('.result-card');
+            if (card) {
                 e.preventDefault(); // Chặn menu mặc định của trình duyệt
-
-                const card = thumbArea.closest('.result-card');
-                if (!card) return;
 
                 const itemId = String(card.dataset.id || '').trim();
                 const item = this.items.find(it => {
@@ -74,15 +71,15 @@ class ResultsCardRenderer {
 
                 if (!item) return;
 
-                // Dùng chính vùng thumbArea làm anchor để mở popup menu nhưng truyền thêm sự kiện chuột e
-                this.openCardActionMenu(thumbArea, item, e);
+                // Mở popup menu tại vị trí trỏ chuột thay vì cố định neo ở card
+                this.openCardActionMenu(card, item, e);
             }
         });
 
 
         // Zoom button handler (mở ảnh dạng popup trong trang, giống PhotoManager)
         document.addEventListener('click', async (e) => {
-            const zoomBtn = e.target.closest('.image-zoom-btn');
+            const zoomBtn = e.target.closest('.image-zoom-btn') || e.target.closest('.card-thumbnail');
             if (!zoomBtn) return;
 
             e.preventDefault();
@@ -151,59 +148,64 @@ class ResultsCardRenderer {
 
                 console.log('[CardZoom] open url:', fullUrl);
 
-                // Dùng lightbox của PhotoManager (_openLightbox với gạch dưới)
-                if (window.PhotoManager && typeof window.PhotoManager._openLightbox === 'function') {
-                    // Đảm bảo DOM lightbox đã được tạo (mount nếu chưa có)
-                    if (typeof window.PhotoManager._mount === 'function') {
-                        window.PhotoManager._mount();
-                    }
-
-                    // Dựng 1 record giả để _renderLightboxSlide hiển thị đúng
-                    const fakeRecord = Object.assign({}, row || {}, {
-                        public_url:       fullUrl,
-                        publicurl:        fullUrl,
-                        originalfilename: title,
-                        devicetype:       deviceType,
-                        deviceid:         String(deviceId)
-                    });
-
-                    // Lưu lại danh sách _filtered hiện tại rồi ghi đè tạm 1 record
-                    const savedFiltered = window.PhotoManager._filtered;
-                    const savedLbIndex  = window.PhotoManager._lbIndex;
-                    window.PhotoManager._filtered = [fakeRecord];
-                    window.PhotoManager._lbIndex  = 0;
-                    // Xóa ảnh cũ trước khi mở để tránh flash ảnh cũ
-                    const lbImgEl = document.getElementById('pmLbImg');
-                    if (lbImgEl) { lbImgEl.removeAttribute('src'); lbImgEl.style.opacity = '0'; }
-
-                    // Mở lightbox
-                    window.PhotoManager._openLightbox(0);
-
-                    // Sau khi đóng lightbox thì trả lại _filtered/_lbIndex cũ
-                    const lb = document.getElementById('pmLightbox');
-                    if (lbImgEl) { lbImgEl.onload = () => { lbImgEl.style.opacity = '1'; }; lbImgEl.onerror = () => { lbImgEl.style.opacity = '1'; }; }
-                    if (lb) {
-                        const restore = () => {
-                            window.PhotoManager._filtered = savedFiltered;
-                            window.PhotoManager._lbIndex  = savedLbIndex;
-                            window.PhotoManager._savedFilteredForZoom = undefined;
-                            window.PhotoManager._savedLbIndexForZoom  = undefined;
-
-                            lb.removeEventListener('click', onLbClick);
-                            document.removeEventListener('keydown', onEsc);
-                        };
-                        const pmCloseBtn = document.getElementById('pmLbClose');
-                        if (pmCloseBtn) pmCloseBtn.addEventListener('click', restore, { once: true });
-                        const onLbClick = (ev) => {
-                            const body = lb.querySelector('.pm-lb-body');
-                            if (body && !body.contains(ev.target)) restore();
-                        };
-                        const onEsc = (ev) => { if (ev.key === 'Escape') restore(); };
-                        lb.addEventListener('click', onLbClick);
-                        document.addEventListener('keydown', onEsc);
-                    }
-                    return;
+                let thumbSrc = '';
+                const thumbImg = zoomBtn.querySelector ? zoomBtn.querySelector('img.card-thumb-img') : null;
+                if (thumbImg && thumbImg.src && thumbImg.style.display !== 'none') {
+                    thumbSrc = thumbImg.src;
                 }
+
+                // Dùng custom popup để hiển thị ảnh với hiệu ứng mượt mà (smooth transition)
+                const popup = document.createElement('div');
+                popup.style.position = 'fixed';
+                popup.style.inset = '0';
+                popup.style.background = 'rgba(0,0,0,0)';
+                popup.style.zIndex = '999999';
+                popup.style.display = 'flex';
+                popup.style.alignItems = 'center';
+                popup.style.justifyContent = 'center';
+                popup.style.padding = '16px';
+                popup.style.backdropFilter = 'blur(0px)';
+                popup.style.transition = 'background 0.3s ease, backdrop-filter 0.3s ease';
+                
+                popup.innerHTML = `
+                    <div style="background:#fff; border-radius:12px; padding:12px; position:relative; width:80vw; max-width:800px; height:80vh; max-height:800px; display:flex; flex-direction:column; align-items:center; box-shadow:0 10px 25px rgba(0,0,0,0.2); opacity: 0; transform: scale(0.95); transition: opacity 0.3s ease, transform 0.3s ease;">
+                        <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 8px; flex-shrink:0;">
+                            <span style="font-weight:bold; color:#334155; font-size:16px;">${title}</span>
+                            <button class="close-zoom-btn" title="Đóng" style="border:none; background:transparent; font-size:24px; cursor:pointer; color:#64748b; line-height:1; padding:0; transition: color 0.2s;" onmouseover="this.style.color='#f43f5e'" onmouseout="this.style.color='#64748b'">&times;</button>
+                        </div>
+                        <div style="flex:1; width:100%; position:relative; display:flex; align-items:center; justify-content:center; background:#f8fafc; border-radius:8px; overflow:hidden;">
+                            ${thumbSrc ? `<img src="${thumbSrc}" style="position:absolute; width:100%; height:100%; object-fit:contain; filter:blur(10px); opacity:0.6; transform: scale(1.05);" />` : ''}
+                            <i class="fas fa-spinner fa-spin" id="zoomSpinner_${deviceId}" style="font-size:2rem; color:#94a3b8; position:absolute; z-index:2;"></i>
+                            <img src="${fullUrl}" onload="
+                                const spinner = document.getElementById('zoomSpinner_${deviceId}');
+                                if(spinner) spinner.style.display='none';
+                                this.style.opacity='1';
+                            " style="width:100%; height:100%; object-fit:contain; position:relative; z-index:3; opacity:0; transition: opacity 0.4s ease;" onerror="this.style.display='none';" />
+                        </div>
+                    </div>
+                `;
+
+                popup.addEventListener('click', (ev) => {
+                    if (ev.target === popup || ev.target.closest('.close-zoom-btn')) {
+                        popup.style.background = 'rgba(0,0,0,0)';
+                        popup.style.backdropFilter = 'blur(0px)';
+                        popup.children[0].style.opacity = '0';
+                        popup.children[0].style.transform = 'scale(0.95)';
+                        setTimeout(() => popup.remove(), 300);
+                    }
+                });
+
+                document.body.appendChild(popup);
+                
+                // Kích hoạt animation hiện ra
+                requestAnimationFrame(() => {
+                    popup.style.background = 'rgba(0,0,0,0.6)';
+                    popup.style.backdropFilter = 'blur(4px)';
+                    popup.children[0].style.opacity = '1';
+                    popup.children[0].style.transform = 'scale(1)';
+                });
+                return;
+
 
                 // Fallback tuyệt đối nếu không có PhotoManager
                 window.open(fullUrl, '_blank', 'noopener');
@@ -217,7 +219,7 @@ class ResultsCardRenderer {
 
 
         // Location link handler
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', async (e) => {
             const locationLink = e.target.closest('.location-link');
             if (locationLink) {
                 e.preventDefault();
@@ -226,9 +228,110 @@ class ResultsCardRenderer {
                 const rackId = locationLink.dataset.rackId;
                 const layerId = locationLink.dataset.layerId;
                 
-                console.log('Open rack map:', { rackId, layerId });
-                // TODO: Open rack map or location image
-                alert(`📍 位置マップ / Bản đồ vị trí\nRack: ${rackId}\n開発中... / Đang phát triển...`);
+                // Get data
+                const rack = window.DataManager?.data?.rack?.find(r => String(r.RackID) === String(rackId)) || {};
+                const layer = window.DataManager?.data?.racklayers?.find(l => String(l.LayerID) === String(layerId)) || {};
+                
+                const rackNotes = rack.RackNotes || rack.Notes || 'Không có ghi chú';
+                const layerNotes = layer.RackLayerNotes || layer.Notes || 'Không có ghi chú';
+                const rackLocation = rack.RackLocation || rack.RackName || rackId;
+
+                // Build Popup
+                const popup = document.createElement('div');
+                popup.style.position = 'fixed';
+                popup.style.inset = '0';
+                popup.style.background = 'rgba(0,0,0,0.6)';
+                popup.style.zIndex = '99999';
+                popup.style.display = 'flex';
+                popup.style.alignItems = 'center';
+                popup.style.justifyContent = 'center';
+                popup.style.padding = '16px';
+                popup.style.backdropFilter = 'blur(4px)';
+                
+                // Photo
+                let imgHtml = `<div style="padding:40px; background:#f1f5f9; text-align:center; color:#94a3b8; border-radius:8px;"><i class="fas fa-image fa-3x" style="margin-bottom:8px;"></i><p style="margin:0; font-size:12px; font-weight:600;">画像なし <span style="font-weight:400;">/ Không có ảnh</span></p></div>`;
+                if (window.DevicePhotoStore && typeof window.DevicePhotoStore.getThumbnailUrl === 'function') {
+                    const url = await window.DevicePhotoStore.getThumbnailUrl('racklayer', layerId) || await window.DevicePhotoStore.getThumbnailUrl('rack', rackId);
+                    if (url) {
+                        imgHtml = `<img src="${url}" style="width:100%; max-height:40vh; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0;"/>`;
+                    }
+                }
+
+                popup.innerHTML = `
+                    <div style="background:#fff; border-radius:12px; width:100%; max-width:420px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2); position:relative;">
+                        <button class="close-popup-btn" style="position:absolute; top:12px; right:12px; width:32px; height:32px; border-radius:50%; border:none; background:rgba(0,0,0,0.3); color:#fff; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.6)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'">&times;</button>
+                        <div style="padding:16px 48px 16px 16px; background:#0ea5e9; color:#fff;">
+                            <h3 style="margin:0; font-size:16px; font-weight:600; line-height:1.4;"><i class="fas fa-map-marker-alt" style="margin-right:6px;"></i> 位置 / Vị trí: <br><span style="font-size:18px;">${rackLocation} - 棚段 / Tầng ${layer.LayerNumber || layerId || '?'}</span></h3>
+                        </div>
+                        <div style="padding:16px;">
+                            ${imgHtml}
+                            <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                                
+                                <div class="info-group">
+                                    <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px; display:flex; align-items:baseline; gap:6px;">
+                                        <span>ラックメモ</span>
+                                        <span style="font-size:10px; font-weight:400; color:#94a3b8;">(Ghi chú Giá)</span>
+                                    </div>
+                                    <div style="font-size: 14px; color: #334155; padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; min-height: 20px;">
+                                        ${rackNotes}
+                                    </div>
+                                </div>
+
+                                <div class="info-group">
+                                    <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px; display:flex; align-items:baseline; gap:6px;">
+                                        <span>棚段メモ</span>
+                                        <span style="font-size:10px; font-weight:400; color:#94a3b8;">(Ghi chú Tầng)</span>
+                                    </div>
+                                    <div style="font-size: 14px; color: #334155; padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; min-height: 20px;">
+                                        ${layerNotes}
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                popup.addEventListener('click', (ev) => {
+                    if (ev.target === popup || ev.target.closest('.close-popup-btn')) {
+                        popup.remove();
+                    }
+                });
+
+                document.body.appendChild(popup);
+            }
+        });
+
+        // Click vào Status -> Gọi module checkin/checkout nhanh
+        document.addEventListener('click', (e) => {
+            const statusBadge = e.target.closest('.meta-item.status');
+            if (statusBadge) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const card = statusBadge.closest('.result-card');
+                if (!card) return;
+
+                const itemId = String(card.dataset.id || '').trim();
+                const item = this.items.find(it => {
+                    const id = (it.type === 'mold') ? it.MoldID : it.CutterID;
+                    return String(id).trim() === itemId;
+                });
+
+                if (!item) return;
+
+                const itemType = item.type || 'mold';
+                
+                // Xác định trạng thái hiện tại
+                const statusInfo = this.getLatestStatus(item);
+                const currentStatus = statusInfo.status ? statusInfo.status.toUpperCase() : '';
+                
+                // Tự động phân luồng (đang trong kho -> form xuất, ngược lại -> form nhập)
+                const action = (currentStatus === 'OK' || currentStatus === 'IN') ? 'checkout' : 'checkin';
+
+                document.dispatchEvent(new CustomEvent('quick-action', {
+                    detail: { action: action, item, itemType }
+                }));
             }
         });
 
@@ -264,7 +367,9 @@ class ResultsCardRenderer {
         if (
             e.target.closest('.card-checkbox') ||
             e.target.closest('.image-zoom-btn') ||
+            e.target.closest('.card-thumbnail') ||
             e.target.closest('.location-link') ||
+            e.target.closest('.meta-item.status') ||
             e.target.closest('.card-action-btn') ||
             e.target.closest('.card-action-menu-v8')
         ) {
@@ -623,18 +728,14 @@ class ResultsCardRenderer {
             <div class="item-type-badge ${itemType}">${typeBadge}</div>
             
             <!-- Thumbnail Area -->
-            <div class="card-thumbnail">
+            <div class="card-thumbnail" data-id="${itemId}" style="cursor: pointer;" title="Bấm để phóng to">
                 <img class="card-thumb-img"
                     data-devicetype="${itemType}"
                     data-deviceid="${itemId}"
                     alt=""
                     style="width:100%;height:100%;object-fit:cover;display:none;" />
                 <div class="placeholder-icon" data-thumb-placeholder="1">
-                    <i class="fas fa-${typeIcon}"></i>
                 </div>
-                <button class="image-zoom-btn" data-id="${itemId}" title="Phóng to ảnh">
-                    <i class="fas fa-search-plus"></i>
-                </button>
             </div>
             
             <!-- Card Body -->
@@ -648,45 +749,52 @@ class ResultsCardRenderer {
                 <!-- Product Name -->
                 <div class="item-name">${productName}</div>
                 
-                <!-- Dimensions - Green -->
-                <div class="item-dimensions">
-                    <i class="fas fa-ruler-combined"></i>
-                    ${dimensions}
+                <!-- Dimensions + Weight -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <div class="item-dimensions" style="margin-bottom:0;">
+                        <i class="fas fa-ruler-combined"></i>
+                        ${dimensions}
+                    </div>
+                    ${item.MoldWeightModified ? `<div style="font-size:12px; font-weight:700; color:#1e3a8a;"><i class="fas fa-weight-hanging" style="margin-right:2px;"></i> ${item.MoldWeightModified}kg</div>` : ''}
                 </div>
                 
-                <!-- Meta Info Group: Location + Status + Date -->
-                <div class="item-meta-group">
-                    <!-- Location - Blue (clickable) -->
-                    <div class="meta-item location">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <a href="#" class="location-link" 
-                           data-rack-id="${rackLocation.rackId || ''}" 
-                           data-layer-id="${rackLocation.rackLayerId || ''}"
-                           onclick="event.stopPropagation(); event.preventDefault();">
-                            ${location}
-                        </a>
-                    </div>
+                <!-- Meta Info Group: 2 Rows Layout -->
+                <div class="item-meta-group" style="display:flex; flex-direction:column; gap:8px; width:100%; box-sizing: border-box;">
                     
-                    ${statusInfo.status ? `
-                    <!-- Status Badge -->
-                    <div class="meta-item status ${statusClass}">
-                        ${statusLabel}
+                    <!-- Row 1: Location & Status -->
+                    <div style="display:flex; justify-content:space-between; align-items:stretch; gap: 8px; width:100%;">
+                        <!-- Location - Blue (clickable) -->
+                        <div class="meta-item location location-link"
+                             data-rack-id="${rackLocation.rackId || ''}" 
+                             data-layer-id="${rackLocation.rackLayerId || ''}"
+                             style="cursor: pointer; flex:1; display:flex; align-items:center; justify-content:center; font-size: 13px; font-weight: bold; padding: 6px 8px; background: #e0f2fe; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color: #0369a1; transition: background 0.2s;">
+                            <i class="fas fa-map-marker-alt" style="margin-right:4px; color:#0284c7;"></i>
+                            <span>${location}</span>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <div class="meta-item status ${statusClass}" style="flex:1; display:flex; align-items:center; justify-content:center; font-size: 12px; font-weight: bold; padding: 6px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); white-space:nowrap; cursor:pointer; transition: opacity 0.2s; ${statusInfo.status ? '' : 'background: #f1f5f9; color: #94a3b8;'}" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Nhấp để thay đổi trạng thái (Nhập/Xuất kho)">
+                            ${statusInfo.status ? statusLabel : '-'}
+                        </div>
                     </div>
-                    ` : '<div class="meta-item status">-</div>'}
-                    
-                    <!-- Update Date - Right aligned -->
-                    <div class="meta-item date">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span class="meta-date-text">${statusDate || '-'}</span>
 
-                    <button class="card-action-btn"
-                            data-id="${itemId}"
-                            data-type="${itemType}"
-                            aria-label="actions"
-                            onclick="event.stopPropagation();"
-                            style="margin-left:6px;width:28px;height:28px;border-radius:10px;border:1px solid rgba(2,6,23,0.12);background:rgba(255,255,255,0.96);color:var(--ui-accent-hover,#0A5C56);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
+                    <!-- Row 2: Date & Action -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap: 8px;">
+                        <!-- Update Date -->
+                        <div class="meta-item date" style="flex:1; display:flex; align-items:center; justify-content:flex-start; font-size: 12px; font-weight: 500; white-space:nowrap; color:#64748b; padding-left: 4px;">
+                            <i class="fas fa-calendar-alt" style="margin-right:6px;"></i>
+                            <span class="meta-date-text">${statusDate || '-'}</span>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button class="card-action-btn"
+                                data-id="${itemId}"
+                                data-type="${itemType}"
+                                aria-label="actions"
+                                onclick="event.stopPropagation();"
+                                style="width:32px;height:32px;flex-shrink:0;border-radius:8px;border:1px solid rgba(2,6,23,0.12);background:rgba(255,255,255,0.96);color:var(--ui-accent-hover,#0A5C56);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:all 0.2s;">
+                            <i class="fas fa-ellipsis-v" style="font-size:13px;"></i>
+                        </button>
                     </div>
 
                 </div>
