@@ -1014,15 +1014,21 @@ class App {
     const categoryDropdown = document.getElementById('categoryDropdown');
     if (!categoryDropdown) return;
 
-    const allCount = this.allItems.length;
-    const moldCount = this.allItems.filter(item => item.type === 'mold').length;
-    const cutterCount = this.allItems.filter(item => item.type === 'cutter').length;
-
+    // Remove numbers and update options
     categoryDropdown.innerHTML = `
-      <option value="all">全て (${allCount})</option>
-      <option value="mold">金型 (${moldCount})</option>
-      <option value="cutter">抜型 (${cutterCount})</option>
+      <option value="all">全て</option>
+      <option value="mold">金型</option>
+      <option value="cutter">抜型</option>
     `;
+
+    // Apply color class dynamically
+    const updateDropdownClass = () => {
+        categoryDropdown.classList.remove('mold-active', 'cutter-active');
+        if (categoryDropdown.value === 'mold') categoryDropdown.classList.add('mold-active');
+        if (categoryDropdown.value === 'cutter') categoryDropdown.classList.add('cutter-active');
+    };
+    categoryDropdown.addEventListener('change', updateDropdownClass);
+    updateDropdownClass(); // init
   }
 
   /**
@@ -1074,7 +1080,7 @@ class App {
     if (this.isSyncingSelection) return;
     this.isSyncingSelection = true;
 
-    const ids = (selectedCodes || []).map(n => parseInt(n)).filter(n => !isNaN(n));
+    const ids = (selectedCodes || []).map(n => String(n).trim()).filter(n => n.length > 0);
     this.selectedIds = new Set(ids);
     window.selectedCodes = ids; // IMPORTANT: Sync global variable for toggle button
 
@@ -1379,48 +1385,8 @@ class App {
 
 
   ensureMobilePhotoMenu() {
-    // Ưu tiên gắn vào bottom nav nếu có
-    const bottomNav = document.getElementById('bottom-nav-bar');
-    if (bottomNav && !document.getElementById('nav-photo-manager-btn')) {
-      const btn = document.createElement('button');
-      btn.className = 'bottom-nav-item';
-      btn.id = 'nav-photo-manager-btn';
-      btn.type = 'button';
-      btn.innerHTML = `
-        <i class="fas fa-images bottom-nav-icon"></i>
-        <span class="bottom-nav-label"><br/><small>Ảnh</small></span>
-      `;
-      btn.addEventListener('click', () => this.openPhotoActionSheet());
-      bottomNav.appendChild(btn);
-      return;
-    }
-
-    // Fallback gắn vào mobileNavbar container nếu tồn tại (MOBILE bottom nav)
-    const mobile = document.getElementById("mobileNavbar");
-    const wrap = mobile ? (mobile.querySelector(".mobile-navbar-items") || mobile) : null;
-
-    if (wrap && !document.getElementById("nav-photo-capture-btn")) {
-      const btn = document.createElement("div");
-      btn.className = "mobile-nav-item";
-      btn.id = "nav-photo-capture-btn";
-      btn.setAttribute("data-nav", "photo");
-
-      btn.innerHTML = `
-        <i class="fas fa-camera"></i>
-        <span>Ảnh</span>
-      `.trim();
-
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.openPhotoUploadQuick();
-      });
-
-      // Chèn trước nút Menu nếu có, để không bị dồn sang phải quá
-      const menuBtn = wrap.querySelector("#menuNavBtn");
-      if (menuBtn && menuBtn.parentNode === wrap) wrap.insertBefore(btn, menuBtn);
-      else wrap.appendChild(btn);
-    }
+    // Đã cấu hình cứng trong index.html với layout 5 nút cân đối 
+    return;
   }
 
     /**
