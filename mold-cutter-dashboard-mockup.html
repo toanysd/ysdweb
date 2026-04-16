@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金型・抜型管理システム / Mold Cutter System — Mockup v9</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --font-ja: 'Noto Sans JP', sans-serif;
+  --font-body: 'Inter', 'Noto Sans JP', sans-serif;
+
+  --text-xs:   clamp(0.65rem, 0.6rem + 0.2vw, 0.75rem);
+  --text-sm:   clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-base: clamp(0.875rem, 0.82rem + 0.25vw, 1rem);
+  --text-lg:   clamp(1rem,    0.95rem + 0.3vw, 1.125rem);
+  --text-xl:   clamp(1.125rem,1rem + 0.5vw, 1.375rem);
+  --text-2xl:  clamp(1.5rem,  1.2rem + 1vw,  2rem);
+
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+  --space-4: 1rem;    --space-5: 1.25rem;--space-6: 1.5rem;
+  --space-8: 2rem;    --space-10: 2.5rem;--space-12: 3rem;
+
+  /* Nexus Palette — adapted for industrial/manufacturing */
+  --color-bg:             #f4f5f7;
+  --color-surface:        #ffffff;
+  --color-surface-2:      #f9fafb;
+  --color-surface-offset: #eef0f3;
+  --color-border:         #e2e6ea;
+  --color-divider:        #dde1e7;
+
+  --color-text:           #1a1d23;
+  --color-text-muted:     #6b7280;
+  --color-text-faint:     #9ca3af;
+
+  --color-primary:        #0d6d6e;
+  --color-primary-hover:  #0a5556;
+  --color-primary-light:  #e0f2f1;
+
+  --color-success:        #16a34a;
+  --color-success-light:  #dcfce7;
+  --color-warning:        #d97706;
+  --color-warning-light:  #fef3c7;
+  --color-error:          #dc2626;
+  --color-error-light:    #fee2e2;
+  --color-info:           #2563eb;
+  --color-info-light:     #dbeafe;
+  --color-purple:         #7c3aed;
+  --color-purple-light:   #ede9fe;
+  --color-orange:         #ea580c;
+  --color-orange-light:   #ffedd5;
+
+  --sidebar-width: 220px;
+  --sidebar-collapsed: 56px;
+  --header-h: 52px;
+  --topbar-h: 60px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.12);
+
+  --transition: 180ms cubic-bezier(0.16,1,0.3,1);
+}
+[data-theme="dark"] {
+  --color-bg:             #111318;
+  --color-surface:        #181b21;
+  --color-surface-2:      #1e2128;
+  --color-surface-offset: #242830;
+  --color-border:         #2e333d;
+  --color-divider:        #252930;
+  --color-text:           #e4e6ea;
+  --color-text-muted:     #7a8394;
+  --color-text-faint:     #4a5060;
+  --color-primary:        #2dd4bf;
+  --color-primary-hover:  #14b8a6;
+  --color-primary-light:  #1a2e2d;
+  --color-success:        #4ade80;
+  --color-success-light:  #14291e;
+  --color-warning:        #fbbf24;
+  --color-warning-light:  #2a2010;
+  --color-error:          #f87171;
+  --color-error-light:    #2a1010;
+  --color-info:           #60a5fa;
+  --color-info-light:     #101e35;
+  --color-purple:         #a78bfa;
+  --color-purple-light:   #1e1535;
+  --color-orange:         #fb923c;
+  --color-orange-light:   #2a1500;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ============================================================
+   APP LAYOUT
+   ============================================================ */
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width var(--transition);
+  overflow: hidden;
+  position: relative;
+  z-index: 100;
+}
+.sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+.sidebar-header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.sidebar-logo-icon {
+  width: 30px; height: 30px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px;
+  flex-shrink: 0;
+}
+.sidebar-logo-text {
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-logo-text .title {
+  font-size: var(--text-sm); font-weight: 700;
+  color: var(--color-text); white-space: nowrap; overflow: hidden;
+  line-height: 1.2;
+}
+.sidebar-logo-text .ver {
+  font-size: 9px; color: var(--color-text-faint); white-space: nowrap;
+}
+.sidebar-toggle {
+  margin-left: auto; flex-shrink: 0;
+  width: 24px; height: 24px;
+  border: none; background: none;
+  color: var(--color-text-muted); cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), color var(--transition);
+}
+.sidebar-toggle:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.sidebar.collapsed .sidebar-logo-text,
+.sidebar.collapsed .sidebar-toggle { display: none; }
+
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: var(--space-2) 0; }
+.sidebar-nav::-webkit-scrollbar { width: 3px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+
+.nav-section { margin-bottom: var(--space-4); }
+.nav-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--color-text-faint);
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  white-space: nowrap; overflow: hidden;
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.sidebar.collapsed .nav-section-title span { display: none; }
+.sidebar.collapsed .nav-section-title { padding: var(--space-2) 0; justify-content: center; }
+
+.nav-item { list-style: none; }
+.nav-link {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  text-decoration: none; color: var(--color-text-muted);
+  border-radius: 0;
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap; overflow: hidden;
+  position: relative; cursor: pointer;
+  font-size: var(--text-sm);
+}
+.nav-link:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.nav-link.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.nav-link.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--color-primary); border-radius: 0 2px 2px 0;
+}
+.nav-link i { width: 16px; text-align: center; flex-shrink: 0; font-size: 13px; }
+.nav-link-text { display: flex; flex-direction: column; overflow: hidden; }
+.nav-link-text .ja { font-size: var(--text-sm); font-weight: 500; line-height: 1.3; white-space: nowrap; }
+.nav-link-text .vi { font-size: 10px; color: var(--color-text-faint); line-height: 1.2; white-space: nowrap; }
+.nav-link.active .nav-link-text .vi { color: var(--color-primary); opacity: .7; }
+.nav-badge {
+  margin-left: auto; font-size: 10px; font-weight: 700;
+  padding: 1px 5px; border-radius: var(--radius-full);
+  min-width: 18px; text-align: center; flex-shrink: 0;
+}
+.nav-badge.info { background: var(--color-info-light); color: var(--color-info); }
+.nav-badge.success { background: var(--color-success-light); color: var(--color-success); }
+.nav-badge.warning { background: var(--color-warning-light); color: var(--color-warning); }
+.nav-badge.error { background: var(--color-error-light); color: var(--color-error); }
+
+.sidebar.collapsed .nav-link { padding: var(--space-2) 0; justify-content: center; }
+.sidebar.collapsed .nav-link-text,
+.sidebar.collapsed .nav-badge { display: none; }
+.sidebar.collapsed .nav-link i { width: 56px; }
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+.main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0;
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.topbar {
+  height: var(--topbar-h);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex; align-items: center;
+  padding: 0 var(--space-4);
+  gap: var(--space-3);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+.topbar-module {
+  display: flex; align-items: center; gap: var(--space-2);
+  flex-shrink: 0;
+}
+.topbar-module-icon {
+  width: 28px; height: 28px; border-radius: var(--radius-md);
+  background: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12px;
+}
+.topbar-module-label { display: flex; flex-direction: column; }
+.topbar-module-label .ja { font-size: var(--text-sm); font-weight: 700; color: var(--color-text); }
+.topbar-module-label .vi { font-size: 10px; color: var(--color-text-faint); }
+
+.topbar-sep { width: 1px; height: 28px; background: var(--color-border); flex-shrink: 0; }
+
+.search-wrap {
+  flex: 1; display: flex; align-items: center; gap: var(--space-2);
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-3);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  height: 36px;
+}
+.search-wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+.search-wrap select {
+  border: none; background: none; font-size: var(--text-xs);
+  color: var(--color-text-muted); cursor: pointer; padding: 0;
+  font-family: var(--font-body);
+}
+.search-divider { width: 1px; height: 14px; background: var(--color-border); }
+.search-wrap input {
+  flex: 1; border: none; background: none; font-size: var(--text-sm);
+  color: var(--color-text); outline: none;
+  font-family: var(--font-body);
+}
+.search-wrap input::placeholder { color: var(--color-text-faint); }
+.search-wrap .search-icon { color: var(--color-text-faint); font-size: 12px; }
+.search-wrap .clear-btn {
+  background: none; border: none; color: var(--color-text-faint);
+  cursor: pointer; font-size: 11px; padding: 2px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+}
+.search-wrap .clear-btn:hover { color: var(--color-text); background: var(--color-surface-offset); }
+
+.topbar-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.topbar-btn {
+  height: 32px; padding: 0 var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2);
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  border-radius: var(--radius-md); cursor: pointer;
+  color: var(--color-text-muted); font-size: var(--text-xs);
+  font-family: var(--font-body);
+  transition: all var(--transition);
+}
+.topbar-btn:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.topbar-btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.topbar-btn.primary:hover { background: var(--color-primary-hover); }
+.topbar-btn.icon-only { width: 32px; padding: 0; justify-content: center; }
+.topbar-btn .ja { font-weight: 600; font-size: var(--text-xs); }
+.topbar-btn .vi { font-size: 9px; opacity: .7; }
+
+/* ============================================================
+   MODULE TABS (below topbar, inside module view)
+   ============================================================ */
+.module-tabs {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex; align-items: center;
+  padding: 0 var(--space-4);
+  gap: 0; overflow-x: auto;
+  flex-shrink: 0;
+}
+.module-tabs::-webkit-scrollbar { height: 0; }
+.tab-btn {
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--space-2) var(--space-4);
+  border: none; background: none; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  color: var(--color-text-muted);
+  transition: color var(--transition), border-color var(--transition);
+  white-space: nowrap; gap: 1px;
+  font-family: var(--font-body);
+  flex-shrink: 0;
+}
+.tab-btn .ja { font-size: var(--text-sm); font-weight: 600; }
+.tab-btn .vi { font-size: 9px; }
+.tab-btn:hover { color: var(--color-text); }
+.tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.tab-btn .badge {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  padding: 0 5px; border-radius: var(--radius-full);
+  background: var(--color-primary-light); color: var(--color-primary);
+  margin-left: 4px; vertical-align: middle;
+}
+.tab-btn.warning-tab.active { color: var(--color-warning); border-bottom-color: var(--color-warning); }
+.tab-btn.warning-tab .badge { background: var(--color-warning-light); color: var(--color-warning); }
+
+/* ============================================================
+   CONTENT AREA
+   ============================================================ */
+.content {
+  flex: 1; overflow-y: auto; padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+.content::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+
+/* ============================================================
+   VIEW CONTROLS BAR
+   ============================================================ */
+.view-controls {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  display: flex; align-items: center; gap: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+.view-toggle { display: flex; gap: var(--space-1); }
+.view-toggle-btn {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); background: none;
+  cursor: pointer; color: var(--color-text-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; transition: all var(--transition);
+}
+.view-toggle-btn.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.view-toggle-btn:hover:not(.active) { background: var(--color-surface-offset); }
+.result-count { font-size: var(--text-sm); color: var(--color-text-muted); }
+.result-count strong { color: var(--color-text); font-weight: 700; }
+
+.vc-actions { display: flex; gap: var(--space-2); margin-left: auto; }
+.vc-btn {
+  height: 28px; padding: 0 var(--space-3);
+  font-size: var(--text-xs); border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  cursor: pointer; color: var(--color-text-muted);
+  display: flex; align-items: center; gap: var(--space-1);
+  transition: all var(--transition); font-family: var(--font-body);
+}
+.vc-btn:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.vc-btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.vc-btn.primary:hover { background: var(--color-primary-hover); }
+.vc-btn.danger { color: var(--color-error); border-color: var(--color-error-light); }
+.vc-btn.danger:hover { background: var(--color-error-light); }
+.vc-btn.disabled { opacity: .4; pointer-events: none; }
+.vc-btn .ja { font-weight: 600; }
+.vc-btn .vi { font-size: 9px; opacity: .7; }
+
+/* ============================================================
+   KPI CARDS
+   ============================================================ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+.kpi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  position: relative; overflow: hidden;
+  transition: box-shadow var(--transition), transform var(--transition);
+  cursor: default;
+}
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.kpi-card.teal::before { background: var(--color-primary); }
+.kpi-card.green::before { background: var(--color-success); }
+.kpi-card.amber::before { background: var(--color-warning); }
+.kpi-card.red::before { background: var(--color-error); }
+.kpi-card.blue::before { background: var(--color-info); }
+.kpi-card.purple::before { background: var(--color-purple); }
+.kpi-card.orange::before { background: var(--color-orange); }
+
+.kpi-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.kpi-icon {
+  width: 28px; height: 28px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+.kpi-card.teal .kpi-icon { background: var(--color-primary-light); color: var(--color-primary); }
+.kpi-card.green .kpi-icon { background: var(--color-success-light); color: var(--color-success); }
+.kpi-card.amber .kpi-icon { background: var(--color-warning-light); color: var(--color-warning); }
+.kpi-card.red .kpi-icon { background: var(--color-error-light); color: var(--color-error); }
+.kpi-card.blue .kpi-icon { background: var(--color-info-light); color: var(--color-info); }
+.kpi-card.purple .kpi-icon { background: var(--color-purple-light); color: var(--color-purple); }
+.kpi-card.orange .kpi-icon { background: var(--color-orange-light); color: var(--color-orange); }
+.kpi-trend { font-size: 10px; display: flex; align-items: center; gap: 2px; }
+.kpi-trend.up { color: var(--color-success); }
+.kpi-trend.down { color: var(--color-error); }
+.kpi-trend.neutral { color: var(--color-text-faint); }
+
+.kpi-label { display: flex; flex-direction: column; gap: 1px; }
+.kpi-label .ja { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: 500; line-height: 1.3; }
+.kpi-label .vi { font-size: 9px; color: var(--color-text-faint); line-height: 1.2; }
+.kpi-value { font-size: var(--text-xl); font-weight: 800; color: var(--color-text); line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi-value.alert { color: var(--color-error); }
+.kpi-value.warning { color: var(--color-warning); }
+.kpi-value.success { color: var(--color-success); }
+.kpi-sub { font-size: var(--text-xs); color: var(--color-text-faint); }
+
+/* ============================================================
+   CHART ROW
+   ============================================================ */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-4);
+}
+@media (max-width: 1100px) { .chart-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 750px) { .chart-row { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+.chart-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.chart-card-title { display: flex; flex-direction: column; gap: 1px; }
+.chart-card-title .ja { font-size: var(--text-sm); font-weight: 700; color: var(--color-text); }
+.chart-card-title .vi { font-size: 10px; color: var(--color-text-faint); }
+.chart-tag {
+  font-size: 10px; padding: 2px 8px; border-radius: var(--radius-full);
+  font-weight: 600;
+}
+.chart-tag.live { background: var(--color-success-light); color: var(--color-success); }
+.chart-tag.weekly { background: var(--color-info-light); color: var(--color-info); }
+.chart-tag.monthly { background: var(--color-purple-light); color: var(--color-purple); }
+
+/* Fake charts using CSS bars */
+.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+.bar { flex: 1; border-radius: 3px 3px 0 0; min-width: 8px; transition: opacity var(--transition); }
+.bar:hover { opacity: .75; }
+.bar.teal { background: var(--color-primary); }
+.bar.green { background: var(--color-success); }
+.bar.amber { background: var(--color-warning); }
+.bar.red { background: var(--color-error); }
+.bar.blue { background: var(--color-info); }
+.bar.purple { background: var(--color-purple); }
+.chart-labels { display: flex; gap: 4px; margin-top: var(--space-2); }
+.chart-label { flex: 1; text-align: center; font-size: 9px; color: var(--color-text-faint); }
+
+/* Donut */
+.donut-wrap { display: flex; align-items: center; gap: var(--space-4); }
+.donut-svg { flex-shrink: 0; }
+.donut-legend { display: flex; flex-direction: column; gap: var(--space-2); flex: 1; }
+.donut-legend-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-label { display: flex; flex-direction: column; flex: 1; }
+.legend-label .ja { font-weight: 500; color: var(--color-text); }
+.legend-label .vi { font-size: 9px; color: var(--color-text-faint); }
+.legend-val { font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+/* Inline line chart */
+.sparkline-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.sparkline-row { display: flex; align-items: center; gap: var(--space-3); }
+.sparkline-info { width: 80px; flex-shrink: 0; }
+.sparkline-info .ja { font-size: var(--text-xs); font-weight: 600; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sparkline-info .vi { font-size: 9px; color: var(--color-text-faint); }
+.sparkline-bar { flex: 1; height: 6px; background: var(--color-surface-offset); border-radius: 3px; overflow: hidden; }
+.sparkline-fill { height: 100%; border-radius: 3px; }
+.sparkline-val { font-size: var(--text-xs); font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; width: 40px; text-align: right; flex-shrink: 0; }
+
+/* ============================================================
+   MOLD CARDS GRID (search results)
+   ============================================================ */
+.mold-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+.mold-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), transform var(--transition);
+  cursor: pointer; position: relative;
+}
+.mold-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.mold-card-img {
+  height: 100px; background: var(--color-surface-offset);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-faint); font-size: 28px;
+  position: relative;
+}
+.mold-card-badge {
+  position: absolute; top: var(--space-2); right: var(--space-2);
+  font-size: 9px; font-weight: 700; padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+.badge-mold { background: var(--color-primary-light); color: var(--color-primary); }
+.badge-cutter { background: var(--color-orange-light); color: var(--color-orange); }
+.badge-out { background: var(--color-error-light); color: var(--color-error); }
+.badge-in { background: var(--color-success-light); color: var(--color-success); }
+
+.mold-card-body { padding: var(--space-3); }
+.mold-card-id { font-size: 9px; color: var(--color-text-faint); margin-bottom: 2px; }
+.mold-card-name { font-size: var(--text-sm); font-weight: 700; color: var(--color-text); line-height: 1.3; margin-bottom: var(--space-2); }
+.mold-card-desc { font-size: 10px; color: var(--color-text-muted); line-height: 1.4; margin-bottom: var(--space-2); }
+.mold-card-meta { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.mold-meta-chip {
+  font-size: 9px; padding: 2px 6px; border-radius: var(--radius-full);
+  background: var(--color-surface-offset); color: var(--color-text-muted);
+  display: flex; align-items: center; gap: 3px;
+}
+.mold-card-footer {
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mold-status { display: flex; align-items: center; gap: var(--space-2); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.in { background: var(--color-success); }
+.status-dot.out { background: var(--color-error); }
+.status-label { font-size: 10px; color: var(--color-text-muted); }
+.mold-date { font-size: 9px; color: var(--color-text-faint); }
+
+/* checkbox in card */
+.mold-checkbox {
+  position: absolute; top: var(--space-2); left: var(--space-2);
+  width: 16px; height: 16px; border-radius: 3px;
+  background: rgba(255,255,255,.9); border: 1.5px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ============================================================
+   PLASTIC DASHBOARD (WMS)
+   ============================================================ */
+.wms-header {
+  background: linear-gradient(135deg, var(--color-primary) 0%, color-mix(in oklab, var(--color-primary), var(--color-info) 40%) 100%);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  color: #fff;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  box-shadow: var(--shadow-md);
+}
+.wms-header-left { display: flex; flex-direction: column; gap: var(--space-2); }
+.wms-header-icon { width: 40px; height: 40px; background: rgba(255,255,255,.2); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: var(--space-2); }
+.wms-title .ja { font-size: var(--text-xl); font-weight: 800; }
+.wms-title .vi { font-size: var(--text-sm); opacity: .8; }
+.wms-subtitle { font-size: var(--text-xs); opacity: .7; max-width: 360px; }
+.wms-header-actions { display: flex; gap: var(--space-2); }
+.wms-hdr-btn {
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-md);
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+  color: #fff; cursor: pointer; font-size: var(--text-xs);
+  font-family: var(--font-body); font-weight: 600;
+  transition: background var(--transition);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.wms-hdr-btn:hover { background: rgba(255,255,255,.25); }
+.wms-hdr-btn.white { background: #fff; color: var(--color-primary); border-color: #fff; }
+.wms-hdr-btn.white:hover { background: #f0fdf4; }
+
+.period-tabs { display: flex; gap: var(--space-2); }
+.period-tab {
+  padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 600; cursor: pointer;
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  color: var(--color-text-muted); font-family: var(--font-body);
+  transition: all var(--transition);
+}
+.period-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.period-tab:hover:not(.active) { background: var(--color-surface-offset); }
+.period-tab .vi { font-size: 9px; display: block; font-weight: 400; }
+
+/* ============================================================
+   ALERT BANNER
+   ============================================================ */
+.alert-banner {
+  border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4);
+  display: flex; align-items: center; gap: var(--space-3);
+  border: 1px solid;
+}
+.alert-banner.warning { background: var(--color-warning-light); border-color: color-mix(in oklab, var(--color-warning) 30%, transparent); }
+.alert-banner.error { background: var(--color-error-light); border-color: color-mix(in oklab, var(--color-error) 30%, transparent); }
+.alert-icon { font-size: 16px; flex-shrink: 0; }
+.alert-banner.warning .alert-icon { color: var(--color-warning); }
+.alert-banner.error .alert-icon { color: var(--color-error); }
+.alert-text { flex: 1; }
+.alert-text .ja { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.alert-text .vi { font-size: var(--text-xs); color: var(--color-text-muted); }
+.alert-dismiss { font-size: 11px; color: var(--color-text-faint); cursor: pointer; border: none; background: none; }
+.alert-dismiss:hover { color: var(--color-text); }
+
+/* ============================================================
+   THEME TOGGLE
+   ============================================================ */
+.theme-toggle {
+  width: 32px; height: 32px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  cursor: pointer; color: var(--color-text-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; transition: all var(--transition);
+}
+.theme-toggle:hover { background: var(--color-surface-offset); color: var(--color-text); }
+
+/* ============================================================
+   SECTION LABEL
+   ============================================================ */
+.section-label {
+  display: flex; align-items: center; gap: var(--space-3);
+  font-size: var(--text-sm); font-weight: 700; color: var(--color-text);
+}
+.section-label .vi { font-size: var(--text-xs); color: var(--color-text-faint); font-weight: 400; }
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--color-divider); }
+
+/* ============================================================
+   MODULE SWITCHER (demo)
+   ============================================================ */
+.module-switcher {
+  position: fixed; bottom: var(--space-6); right: var(--space-6);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl); padding: var(--space-3);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  z-index: 200;
+}
+.module-switcher-title {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--color-text-faint); font-weight: 700; text-align: center;
+  padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-divider);
+}
+.ms-btn {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md); border: 1px solid var(--color-border);
+  background: var(--color-surface-2); cursor: pointer;
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  font-family: var(--font-body); font-weight: 600;
+  transition: all var(--transition); white-space: nowrap;
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.ms-btn:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.ms-btn.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.ms-btn i { font-size: 11px; }
+
+/* ============================================================
+   SEARCH ISOLATION FIX — visual indicator
+   ============================================================ */
+.search-scope-pill {
+  display: flex; align-items: center; gap: var(--space-1);
+  background: var(--color-primary-light); color: var(--color-primary);
+  border-radius: var(--radius-full); padding: 2px 8px 2px 6px;
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+  border: 1px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+.search-scope-pill i { font-size: 9px; }
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.flex-1 { flex: 1; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* view panels */
+.view-panel { display: none; flex-direction: column; gap: var(--space-4); flex: 1; }
+.view-panel.active { display: flex; }
+
+/* hidden */
+.mcs-hidden { display: none !important; }
+
+/* Skeleton */
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface-offset) 25%, var(--color-divider) 50%, var(--color-surface-offset) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ====================================================
+       SIDEBAR
+       ==================================================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-icon"><i class="fas fa-layer-group"></i></div>
+      <div class="sidebar-logo-text">
+        <span class="title">MoldCutter</span>
+        <span class="ver">v9.0 — Mockup</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" title="サイドバーを折りたたむ / Thu gọn">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- メイン -->
+      <div class="nav-section">
+        <div class="nav-section-title"><i class="fas fa-th-large"></i><span>メイン / Main</span></div>
+        <ul>
+          <li class="nav-item">
+            <a class="nav-link active" id="nav-search" onclick="switchModule('search')">
+              <i class="fas fa-search"></i>
+              <div class="nav-link-text"><span class="ja">検索</span><span class="vi">Tìm kiếm Khuôn</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="nav-tray" onclick="switchModule('tray')">
+              <i class="fas fa-box"></i>
+              <div class="nav-link-text"><span class="ja">トレイ管理</span><span class="vi">Quản lý Khay</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="nav-cutter" onclick="switchModule('cutter')" style="opacity:.6" title="Coming soon">
+              <i class="fas fa-cut"></i>
+              <div class="nav-link-text"><span class="ja">カッター管理</span><span class="vi">Quản lý Dao cắt</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-map-marked-alt"></i>
+              <div class="nav-link-text"><span class="ja">位置管理</span><span class="vi">Quản lý vị trí</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-history"></i>
+              <div class="nav-link-text"><span class="ja">履歴</span><span class="vi">Lịch sử</span></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 管理 -->
+      <div class="nav-section">
+        <div class="nav-section-title"><i class="fas fa-cog"></i><span>管理 / Management</span></div>
+        <ul>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-exchange-alt"></i>
+              <div class="nav-link-text"><span class="ja">入出庫</span><span class="vi">Nhập xuất kho</span></div>
+              <span class="nav-badge info">3</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="nav-plastic" onclick="switchModule('plastic')">
+              <i class="fas fa-box-open"></i>
+              <div class="nav-link-text"><span class="ja">プラ材料 (WMS)</span><span class="vi">Quản lý Nhựa</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-clipboard-check"></i>
+              <div class="nav-link-text"><span class="ja">棚卸</span><span class="vi">Kiểm kê</span></div>
+              <span class="nav-badge success">0</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-paint-roller"></i>
+              <div class="nav-link-text"><span class="ja">テフロン</span><span class="vi">Teflon</span></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- ツール -->
+      <div class="nav-section">
+        <div class="nav-section-title"><i class="fas fa-tools"></i><span>ツール / Tools</span></div>
+        <ul>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-camera"></i>
+              <div class="nav-link-text"><span class="ja">写真アップロード</span><span class="vi">Tải / Chụp ảnh</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-images"></i>
+              <div class="nav-link-text"><span class="ja">写真管理</span><span class="vi">Quản lý ảnh</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="">
+              <i class="fas fa-bolt" style="color:#60a5fa;"></i>
+              <div class="nav-link-text"><span class="ja">アクション設定</span><span class="vi">Thiết lập Action</span></div>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="location.reload()">
+              <i class="fas fa-sync-alt" style="color:#ef4444;"></i>
+              <div class="nav-link-text"><span class="ja">ハードリセット</span><span class="vi">Tải lại Dữ liệu</span></div>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ====================================================
+       MAIN
+       ==================================================== -->
+  <main class="main">
+
+    <!-- TOP BAR — GLOBAL (search isolated to active module) -->
+    <div class="topbar" id="topbar">
+
+      <!-- Module icon + name -->
+      <div class="topbar-module" id="topbar-module-info">
+        <div class="topbar-module-icon" id="topbar-icon"><i class="fas fa-search"></i></div>
+        <div class="topbar-module-label">
+          <span class="ja" id="topbar-ja">金型・抜型 検索</span>
+          <span class="vi" id="topbar-vi">Tìm kiếm Khuôn / Dao cắt</span>
+        </div>
+      </div>
+      <div class="topbar-sep"></div>
+
+      <!-- SEARCH — scope pill shows which module -->
+      <div class="search-wrap" id="globalSearchWrap">
+        <select id="categoryDropdown" title="カテゴリ / Loại">
+          <option value="all">全て</option>
+          <option value="mold">金型</option>
+          <option value="cutter">抜型</option>
+          <option value="tray">トレイ</option>
+        </select>
+        <div class="search-divider"></div>
+        <!-- scope pill shows which module search applies to -->
+        <div class="search-scope-pill" id="searchScopePill">
+          <i class="fas fa-search"></i>
+          <span id="searchScopeLabel">金型・抜型</span>
+        </div>
+        <input type="text" id="searchInput" placeholder="コード・製品名・位置・会社名 / Mã, tên, vị trí, công ty...">
+        <button class="clear-btn" title="クリア"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <button class="topbar-btn" title="絞込 / Bộ lọc">
+          <i class="fas fa-sliders-h"></i>
+          <span class="ja">絞込</span>
+        </button>
+        <button class="topbar-btn icon-only" title="データ更新 / Tải lại"><i class="fas fa-sync-alt"></i></button>
+        <button class="theme-toggle" id="themeToggle" title="テーマ切替 / Đổi giao diện">
+          <i class="fas fa-moon"></i>
+        </button>
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">YS</div>
+      </div>
+    </div>
+
+    <!-- ================================================
+         VIEW: MOLD SEARCH
+         ============================================== -->
+    <div class="view-panel active" id="panel-search" style="overflow:hidden;">
+      <!-- View Controls -->
+      <div style="background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:var(--space-3) var(--space-4);display:flex;align-items:center;gap:var(--space-3);">
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" title="カードビュー"><i class="fas fa-th-large"></i></button>
+          <button class="view-toggle-btn" title="テーブルビュー"><i class="fas fa-table"></i></button>
+        </div>
+        <label style="display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-xs);color:var(--color-text-muted);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--color-primary);">
+          <span class="ja">全選択</span>
+        </label>
+        <div class="result-count"><strong>6,348</strong> 件</div>
+        <div class="vc-actions">
+          <button class="vc-btn disabled"><i class="fas fa-print"></i><span class="ja">印刷</span></button>
+          <button class="vc-btn disabled"><i class="fas fa-clipboard-check"></i><span class="ja">棚卸</span></button>
+          <button class="vc-btn"><i class="fas fa-sync-alt"></i><span class="ja">Reset</span></button>
+          <button class="vc-btn primary"><i class="fas fa-unlock"></i><span class="ja">Unlock</span></button>
+        </div>
+      </div>
+
+      <!-- Cards -->
+      <div style="flex:1;overflow-y:auto;padding:var(--space-4);">
+        <div class="mold-grid">
+          <!-- Card 1 -->
+          <div class="mold-card">
+            <div class="mold-card-img" style="background:linear-gradient(135deg,#e0f2f1,#b2dfdb);">
+              <i class="fas fa-cube" style="color:#0d6d6e;font-size:32px;"></i>
+            </div>
+            <div class="mold-card-badge badge-mold">金型</div>
+            <div class="mold-checkbox"><i class="fas fa-check" style="font-size:8px;color:transparent;"></i></div>
+            <div class="mold-card-body">
+              <div class="mold-card-id">ID: 5781</div>
+              <div class="mold-card-name">MTM191R5</div>
+              <div class="mold-card-desc">BUF AF DAMPING PIN TRAY</div>
+              <div class="mold-card-meta">
+                <span class="mold-meta-chip"><i class="fas fa-ruler-combined"></i>469×299×22.4</span>
+                <span class="mold-meta-chip"><i class="fas fa-map-marker-alt"></i>新規金型-0</span>
+              </div>
+            </div>
+            <div class="mold-card-footer">
+              <div class="mold-status"><div class="status-dot in"></div><span class="status-label"><span style="font-weight:600;font-size:10px;">在庫中</span><span style="font-size:9px;color:var(--color-text-faint);display:block;">Trong kho</span></span></div>
+              <div class="mold-date">2026.04.07</div>
+            </div>
+          </div>
+          <!-- Card 2 -->
+          <div class="mold-card">
+            <div class="mold-card-img" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
+              <i class="fas fa-vector-square" style="color:#ea580c;font-size:32px;"></i>
+            </div>
+            <div class="mold-card-badge badge-cutter">抜型</div>
+            <div class="mold-checkbox"></div>
+            <div class="mold-card-body">
+              <div class="mold-card-id">ID: 5783</div>
+              <div class="mold-card-name">MDS009D</div>
+              <div class="mold-card-desc">MDS-009D</div>
+              <div class="mold-card-meta">
+                <span class="mold-meta-chip"><i class="fas fa-map-marker-alt"></i>試作金型-1</span>
+              </div>
+            </div>
+            <div class="mold-card-footer">
+              <div class="mold-status"><div class="status-dot in"></div><span class="status-label"><span style="font-weight:600;font-size:10px;">在庫中</span><span style="font-size:9px;color:var(--color-text-faint);display:block;">Trong kho</span></span></div>
+              <div class="mold-date">—</div>
+            </div>
+          </div>
+          <!-- Card 3 OUT -->
+          <div class="mold-card">
+            <div class="mold-card-img" style="background:linear-gradient(135deg,#fef2f2,#fecaca);">
+              <i class="fas fa-cube" style="color:#dc2626;font-size:32px;opacity:.6;"></i>
+            </div>
+            <div class="mold-card-badge badge-out">出庫中</div>
+            <div class="mold-checkbox"></div>
+            <div class="mold-card-body">
+              <div class="mold-card-id">ID: 5770</div>
+              <div class="mold-card-name">JAE376R2</div>
+              <div class="mold-card-desc">025-60351 UA01R (プラグ) 275×275</div>
+              <div class="mold-card-meta">
+                <span class="mold-meta-chip"><i class="fas fa-ruler-combined"></i>300×285×27</span>
+                <span class="mold-meta-chip"><i class="fas fa-map-marker-alt"></i>新規金型-0</span>
+              </div>
+            </div>
+            <div class="mold-card-footer">
+              <div class="mold-status"><div class="status-dot out"></div><span class="status-label"><span style="font-weight:600;font-size:10px;color:var(--color-error);">出庫中</span><span style="font-size:9px;color:var(--color-text-faint);display:block;">Đã xuất kho</span></span></div>
+              <div class="mold-date">2026.04.04</div>
+            </div>
+          </div>
+          <!-- Card 4 -->
+          <div class="mold-card">
+            <div class="mold-card-img" style="background:linear-gradient(135deg,#f0fdf4,#bbf7d0);">
+              <i class="fas fa-cube" style="color:#16a34a;font-size:32px;"></i>
+            </div>
+            <div class="mold-card-badge badge-in">入庫 IN</div>
+            <div class="mold-checkbox"></div>
+            <div class="mold-card-body">
+              <div class="mold-card-id">ID: 5776</div>
+              <div class="mold-card-name">ASH020R1</div>
+              <div class="mold-card-desc">CB6-3152-000 K548 B PLATE REAR</div>
+              <div class="mold-card-meta">
+                <span class="mold-meta-chip"><i class="fas fa-ruler-combined"></i>470×347×29</span>
+                <span class="mold-meta-chip"><i class="fas fa-map-marker-alt"></i>12-5</span>
+                <span class="mold-meta-chip"><i class="fas fa-weight-hanging"></i>7.15kg</span>
+              </div>
+            </div>
+            <div class="mold-card-footer">
+              <div class="mold-status"><div class="status-dot in"></div><span class="status-label"><span style="font-weight:600;font-size:10px;">在庫中</span><span style="font-size:9px;color:var(--color-text-faint);display:block;">Trong kho</span></span></div>
+              <div class="mold-date">2026.04.07</div>
+            </div>
+          </div>
+          <!-- Card 5 -->
+          <div class="mold-card">
+            <div class="mold-card-img" style="background:linear-gradient(135deg,#eff6ff,#bfdbfe);">
+              <i class="fas fa-vector-square" style="color:#2563eb;font-size:32px;"></i>
+            </div>
+            <div class="mold-card-badge badge-cutter">抜型</div>
+            <div class="mold-checkbox"></div>
+            <div class="mold-card-body">
+              <div class="mold-card-id">ID: 5771</div>
+              <div class="mold-card-name">SMK229</div>
+              <div class="mold-card-desc">167CSC-077-01E 2連 LV コネクタ 16個入</div>
+              <div class="mold-card-meta">
+                <span class="mold-meta-chip"><i class="fas fa-ruler-combined"></i>590×400×74</span>
+                <span class="mold-meta-chip"><i class="fas fa-map-marker-alt"></i>SAKATA</span>
+              </div>
+            </div>
+            <div class="mold-card-footer">
+              <div class="mold-status"><div class="status-dot out"></div><span class="status-label"><span style="font-weight:600;font-size:10px;color:var(--color-error);">出庫中</span><span style="font-size:9px;color:var(--color-text-faint);display:block;">Đã xuất kho</span></span></div>
+              <div class="mold-date">2026.04.02</div>
+            </div>
+          </div>
+          <!-- Card 6 skeleton -->
+          <div class="mold-card" style="opacity:.5;">
+            <div class="mold-card-img skeleton"></div>
+            <div class="mold-card-body" style="display:flex;flex-direction:column;gap:var(--space-2);">
+              <div class="skeleton" style="height:10px;width:40%;"></div>
+              <div class="skeleton" style="height:14px;width:70%;"></div>
+              <div class="skeleton" style="height:10px;width:90%;"></div>
+            </div>
+          </div>
+          <!-- Card 7 skeleton -->
+          <div class="mold-card" style="opacity:.3;">
+            <div class="mold-card-img skeleton"></div>
+            <div class="mold-card-body" style="display:flex;flex-direction:column;gap:var(--space-2);">
+              <div class="skeleton" style="height:10px;width:35%;"></div>
+              <div class="skeleton" style="height:14px;width:60%;"></div>
+              <div class="skeleton" style="height:10px;width:85%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================
+         VIEW: PLASTIC WMS DASHBOARD
+         ============================================== -->
+    <div class="view-panel" id="panel-plastic" style="overflow:hidden;">
+
+      <!-- Module Tabs -->
+      <div class="module-tabs" id="plasticTabs">
+        <button class="tab-btn active" onclick="switchPlasticTab(this,'dashboard')">
+          <span class="ja">ダッシュボード <span class="badge">Live</span></span>
+          <span class="vi">Tổng quan kho nhựa</span>
+        </button>
+        <button class="tab-btn" onclick="switchPlasticTab(this,'master')">
+          <span class="ja">マスタ</span>
+          <span class="vi">Mã chuẩn</span>
+        </button>
+        <button class="tab-btn" onclick="switchPlasticTab(this,'receipt')">
+          <span class="ja">入庫</span>
+          <span class="vi">Nhập kho</span>
+        </button>
+        <button class="tab-btn" onclick="switchPlasticTab(this,'usage')">
+          <span class="ja">使用</span>
+          <span class="vi">Xuất dùng</span>
+        </button>
+        <button class="tab-btn" onclick="switchPlasticTab(this,'stock')">
+          <span class="ja">在庫</span>
+          <span class="vi">Tồn kho</span>
+        </button>
+        <button class="tab-btn warning-tab" onclick="switchPlasticTab(this,'adj')">
+          <span class="ja">調整 <span class="badge">2</span></span>
+          <span class="vi">Điều chỉnh</span>
+        </button>
+        <button class="tab-btn" onclick="switchPlasticTab(this,'dict')">
+          <span class="ja">辞書</span>
+          <span class="vi">Từ điển</span>
+        </button>
+      </div>
+
+      <!-- Dashboard content -->
+      <div style="flex:1;overflow-y:auto;" id="plasticContent">
+        <div style="padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-4);">
+
+          <!-- Alert -->
+          <div class="alert-banner warning">
+            <i class="fas fa-exclamation-triangle alert-icon"></i>
+            <div class="alert-text">
+              <div class="ja">在庫不足アラート — 53本のロールが最低在庫ラインを下回っています</div>
+              <div class="vi">Cảnh báo tồn thấp — 53 cuộn nhựa dưới mức tối thiểu</div>
+            </div>
+            <button class="alert-dismiss"><i class="fas fa-times"></i></button>
+          </div>
+
+          <!-- WMS Header -->
+          <div class="wms-header">
+            <div class="wms-header-left">
+              <div class="wms-header-icon"><i class="fas fa-boxes"></i></div>
+              <div class="wms-title">
+                <div class="ja">ダッシュボード — プラ材料倉庫管理</div>
+                <div class="vi">Tổng quan kho nhựa (WMS)</div>
+              </div>
+              <div class="wms-subtitle">入庫・在庫・未紐付・在庫低下のアラート / Tổng hợp nhập, dùng, cảnh báo chưa map và tồn thấp</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-3);">
+              <div class="period-tabs">
+                <button class="period-tab active" onclick="activePeriod(this)"><span>本日</span><span class="vi">Hôm nay</span></button>
+                <button class="period-tab" onclick="activePeriod(this)"><span>過去7日</span><span class="vi">7 ngày</span></button>
+                <button class="period-tab" onclick="activePeriod(this)"><span>過去30日</span><span class="vi">30 ngày</span></button>
+                <button class="period-tab" onclick="activePeriod(this)"><span>全期間</span><span class="vi">Toàn bộ</span></button>
+              </div>
+              <div class="wms-header-actions">
+                <button class="wms-hdr-btn"><i class="fas fa-sync-alt"></i><span>リロード / Tải lại</span></button>
+                <button class="wms-hdr-btn white"><i class="fas fa-file-export"></i><span>エクスポート</span></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Grid -->
+          <div>
+            <div class="section-label" style="margin-bottom:var(--space-3);">
+              <i class="fas fa-tachometer-alt" style="color:var(--color-primary);"></i>
+              <span class="ja">主要KPI</span>
+              <span class="vi">/ Chỉ số chính</span>
+            </div>
+            <div class="kpi-grid">
+              <div class="kpi-card teal">
+                <div class="kpi-header">
+                  <div class="kpi-icon"><i class="fas fa-layer-group"></i></div>
+                  <span class="kpi-trend up"><i class="fas fa-arrow-up"></i>+5</span>
+                </div>
+                <div class="kpi-label"><span class="ja">総ロール数</span><span class="vi">Tổng số cuộn</span></div>
+                <div class="kpi-value">410</div>
+                <div class="kpi-sub">全SKU / Tất cả SKU</div>
+              </div>
+              <div class="kpi-card green">
+                <div class="kpi-header">
+                  <div class="kpi-icon"><i class="fas fa-arrow-circle-down"></i></div>
+                  <span class="kpi-trend up"><i class="fas fa-arrow-up"></i>+120m</span>
+                </div>
+                <div class="kpi-label"><span class="ja">総入庫 (m)</span><span class="vi">Tổng m nhập</span></div>
+                <div class="kpi-value">63,555</div>
+                <div class="kpi-sub">本日累計 / Hôm nay</div>
+              </div>
+              <div class="kpi-card blue">
+                <div class="kpi-header">
+                  <div class="kpi-icon"><i class="fas fa-warehouse"></i></div>
+                  <span class="kpi-trend neutral">—</span>
+                </div>
+                <div class="kpi-label"><span class="ja">現在在庫 (m)</span><span class="vi">Tổng m hiện tại</span></div>
+                <div class="kpi-value" style="font-size:1.1rem;">590,927.98</div>
+                <div class="kpi-sub">リアルタイム / Thời gian thực</div>
+              </div>
+              <div class="kpi-card amber">
+                <div class="kpi-header">
+                  <div class="kpi-icon"><i class="fas fa-fire-alt"></i></div>
+                  <span class="kpi-trend down"><i class="fas fa-arrow-up"></i>+12</span>
+                </div>
+                <div class="kpi-label"><span class="ja">期間内消費 (m)</span><span class="vi">M dùng trong kỳ</span></div>
+                <div class="kpi-value">0</div>
+                <div class="kpi-sub">本日 / Hôm nay</div>
+              </div>
+              <div class="kpi-card red">
+                <div class="kpi-header">
+                  <div class="kpi-icon"><i class="fas fa-exclamation-circle"></i></div>
+                  <span class="kpi-trend down"><i class="fas fa-arrow-up"></i>+3</span>
+                </div>
+                <div class="kpi-label"><span class="ja">在庫低下ロール</span><span class="vi">Cuộn tồn thấp</span></div>
+                <div class="kpi-value alert">53</div>
+                <div class="kpi-sub">最低在庫以下 / Dưới min</div>
+              </div>
+              <div class="kpi-card purple">
+                <div class="kpi-header">
+                  <div class="kpi-icon"><i class="fas fa-unlink"></i></div>
+                  <span class="kpi-trend down"><i class="fas fa-arrow-up"></i>0</span>
+                </div>
+                <div class="kpi-label"><span class="ja">未紐付ロール</span><span class="vi">Cuộn chưa map</span></div>
+                <div class="kpi-value warning">0</div>
+                <div class="kpi-sub">マッピング不要 / Đã map đủ</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div>
+            <div class="section-label" style="margin-bottom:var(--space-3);">
+              <i class="fas fa-chart-bar" style="color:var(--color-primary);"></i>
+              <span class="ja">グラフ分析</span>
+              <span class="vi">/ Phân tích biểu đồ</span>
+            </div>
+            <div class="chart-row">
+
+              <!-- Bar chart -->
+              <div class="chart-card">
+                <div class="chart-card-header">
+                  <div class="chart-card-title">
+                    <span class="ja">月別入庫量 (m)</span>
+                    <span class="vi">Nhập kho theo tháng</span>
+                  </div>
+                  <span class="chart-tag monthly">月次</span>
+                </div>
+                <div class="bar-chart">
+                  <div class="bar teal" style="height:55%;"></div>
+                  <div class="bar teal" style="height:70%;"></div>
+                  <div class="bar teal" style="height:48%;"></div>
+                  <div class="bar teal" style="height:82%;"></div>
+                  <div class="bar teal" style="height:66%;"></div>
+                  <div class="bar teal" style="height:91%;"></div>
+                  <div class="bar teal" style="height:74%;"></div>
+                  <div class="bar teal" style="height:60%;"></div>
+                  <div class="bar teal" style="height:88%;"></div>
+                  <div class="bar green" style="height:100%;"></div>
+                  <div class="bar teal" style="height:72%;opacity:.4;"></div>
+                  <div class="bar teal" style="height:65%;opacity:.4;"></div>
+                </div>
+                <div class="chart-labels">
+                  <div class="chart-label">4月</div><div class="chart-label">5月</div>
+                  <div class="chart-label">6月</div><div class="chart-label">7月</div>
+                  <div class="chart-label">8月</div><div class="chart-label">9月</div>
+                  <div class="chart-label">10月</div><div class="chart-label">11月</div>
+                  <div class="chart-label">12月</div><div class="chart-label">1月</div>
+                  <div class="chart-label">2月</div><div class="chart-label">3月</div>
+                </div>
+              </div>
+
+              <!-- Donut -->
+              <div class="chart-card">
+                <div class="chart-card-header">
+                  <div class="chart-card-title">
+                    <span class="ja">材料種別割合</span>
+                    <span class="vi">Tỷ lệ theo loại vật liệu</span>
+                  </div>
+                  <span class="chart-tag live">Live</span>
+                </div>
+                <div class="donut-wrap">
+                  <svg class="donut-svg" width="80" height="80" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="28" fill="none" stroke="var(--color-surface-offset)" stroke-width="16"/>
+                    <circle cx="40" cy="40" r="28" fill="none" stroke="var(--color-primary)" stroke-width="16" stroke-dasharray="70 106" stroke-dashoffset="0" transform="rotate(-90 40 40)"/>
+                    <circle cx="40" cy="40" r="28" fill="none" stroke="var(--color-success)" stroke-width="16" stroke-dasharray="42 134" stroke-dashoffset="-70" transform="rotate(-90 40 40)"/>
+                    <circle cx="40" cy="40" r="28" fill="none" stroke="var(--color-warning)" stroke-width="16" stroke-dasharray="28 148" stroke-dashoffset="-112" transform="rotate(-90 40 40)"/>
+                    <circle cx="40" cy="40" r="28" fill="none" stroke="var(--color-info)" stroke-width="16" stroke-dasharray="20 156" stroke-dashoffset="-140" transform="rotate(-90 40 40)"/>
+                    <text x="40" y="44" text-anchor="middle" font-size="11" font-weight="800" fill="var(--color-text)">410</text>
+                  </svg>
+                  <div class="donut-legend">
+                    <div class="donut-legend-item"><div class="legend-dot" style="background:var(--color-primary);"></div><div class="legend-label"><span class="ja">PVC系</span><span class="vi">Nhựa PVC</span></div><span class="legend-val">40%</span></div>
+                    <div class="donut-legend-item"><div class="legend-dot" style="background:var(--color-success);"></div><div class="legend-label"><span class="ja">PE系</span><span class="vi">Nhựa PE</span></div><span class="legend-val">24%</span></div>
+                    <div class="donut-legend-item"><div class="legend-dot" style="background:var(--color-warning);"></div><div class="legend-label"><span class="ja">PP系</span><span class="vi">Nhựa PP</span></div><span class="legend-val">16%</span></div>
+                    <div class="donut-legend-item"><div class="legend-dot" style="background:var(--color-info);"></div><div class="legend-label"><span class="ja">その他</span><span class="vi">Loại khác</span></div><span class="legend-val">20%</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sparklines -->
+              <div class="chart-card">
+                <div class="chart-card-header">
+                  <div class="chart-card-title">
+                    <span class="ja">上位消費材料</span>
+                    <span class="vi">Top vật liệu tiêu thụ nhiều</span>
+                  </div>
+                  <span class="chart-tag weekly">週次</span>
+                </div>
+                <div class="sparkline-list">
+                  <div class="sparkline-row">
+                    <div class="sparkline-info"><div class="ja truncate">PVC-180-BK</div><div class="vi">PVC đen 180</div></div>
+                    <div class="sparkline-bar"><div class="sparkline-fill" style="width:88%;background:var(--color-primary);"></div></div>
+                    <div class="sparkline-val">8,420m</div>
+                  </div>
+                  <div class="sparkline-row">
+                    <div class="sparkline-info"><div class="ja truncate">PE-120-WH</div><div class="vi">PE trắng 120</div></div>
+                    <div class="sparkline-bar"><div class="sparkline-fill" style="width:71%;background:var(--color-success);"></div></div>
+                    <div class="sparkline-val">6,810m</div>
+                  </div>
+                  <div class="sparkline-row">
+                    <div class="sparkline-info"><div class="ja truncate">PP-200-GR</div><div class="vi">PP xám 200</div></div>
+                    <div class="sparkline-bar"><div class="sparkline-fill" style="width:55%;background:var(--color-warning);"></div></div>
+                    <div class="sparkline-val">5,240m</div>
+                  </div>
+                  <div class="sparkline-row">
+                    <div class="sparkline-info"><div class="ja truncate">PVC-90-RD</div><div class="vi">PVC đỏ 90</div></div>
+                    <div class="sparkline-bar"><div class="sparkline-fill" style="width:38%;background:var(--color-error);"></div></div>
+                    <div class="sparkline-val">3,620m</div>
+                  </div>
+                  <div class="sparkline-row">
+                    <div class="sparkline-info"><div class="ja truncate">PP-150-BL</div><div class="vi">PP xanh 150</div></div>
+                    <div class="sparkline-bar"><div class="sparkline-fill" style="width:22%;background:var(--color-info);"></div></div>
+                    <div class="sparkline-val">2,100m</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================
+         VIEW: TRAY (placeholder)
+         ============================================== -->
+    <div class="view-panel" id="panel-tray">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:var(--space-4);color:var(--color-text-faint);">
+        <i class="fas fa-box" style="font-size:48px;"></i>
+        <div style="text-align:center;">
+          <div style="font-size:var(--text-lg);font-weight:700;color:var(--color-text-muted);">トレイ管理 / Quản lý Khay</div>
+          <div style="font-size:var(--text-sm);margin-top:var(--space-2);">このビューは既存モジュールを保持 / Tab này giữ nguyên module hiện tại</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================
+         VIEW: CUTTER (placeholder)
+         ============================================== -->
+    <div class="view-panel" id="panel-cutter">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:var(--space-4);color:var(--color-text-faint);">
+        <i class="fas fa-cut" style="font-size:48px;"></i>
+        <div style="text-align:center;">
+          <div style="font-size:var(--text-lg);font-weight:700;color:var(--color-text-muted);">カッター管理 / Quản lý Dao cắt</div>
+          <div style="font-size:var(--text-sm);margin-top:var(--space-2);">開発中 / Đang phát triển — Coming soon</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ====================================================
+     MODULE SWITCHER DEMO PANEL
+     ==================================================== -->
+<div class="module-switcher">
+  <div class="module-switcher-title">🎨 Demo — モジュール切替</div>
+  <button class="ms-btn active" id="ms-search" onclick="switchModule('search')"><i class="fas fa-search"></i>金型検索</button>
+  <button class="ms-btn" id="ms-plastic" onclick="switchModule('plastic')"><i class="fas fa-box-open"></i>プラ材料 WMS</button>
+  <button class="ms-btn" id="ms-tray" onclick="switchModule('tray')"><i class="fas fa-box"></i>トレイ管理</button>
+  <button class="ms-btn" id="ms-cutter" onclick="switchModule('cutter')"><i class="fas fa-cut"></i>カッター(予定)</button>
+</div>
+
+<script>
+/* ============================================================
+   THEME TOGGLE
+   ============================================================ */
+const html = document.documentElement;
+const themeBtn = document.getElementById('themeToggle');
+let dark = false;
+themeBtn.addEventListener('click', () => {
+  dark = !dark;
+  html.setAttribute('data-theme', dark ? 'dark' : 'light');
+  themeBtn.innerHTML = dark
+    ? '<i class="fas fa-sun"></i>'
+    : '<i class="fas fa-moon"></i>';
+});
+
+/* ============================================================
+   SIDEBAR TOGGLE
+   ============================================================ */
+const sidebar = document.getElementById('sidebar');
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  const icon = document.querySelector('#sidebarToggle i');
+  icon.className = sidebar.classList.contains('collapsed')
+    ? 'fas fa-chevron-right'
+    : 'fas fa-chevron-left';
+});
+
+/* ============================================================
+   MODULE SWITCHER
+   — FIX: search bar scope pill changes per module
+   — FIX: no content bleed between modules
+   ============================================================ */
+const MODULE_CONFIG = {
+  search: {
+    icon: 'fas fa-search',
+    color: '#0d6d6e',
+    ja: '金型・抜型 検索',
+    vi: 'Tìm kiếm Khuôn / Dao cắt',
+    scope: '金型・抜型',
+    scopeIcon: 'fas fa-search',
+    showSearch: true,
+  },
+  plastic: {
+    icon: 'fas fa-box-open',
+    color: '#7c3aed',
+    ja: 'プラ材料倉庫管理 (WMS)',
+    vi: 'Quản lý Nhựa / Plastic WMS',
+    scope: 'WMS専用',
+    scopeIcon: 'fas fa-box-open',
+    showSearch: false,   // plastic has its own internal search per tab
+  },
+  tray: {
+    icon: 'fas fa-box',
+    color: '#2563eb',
+    ja: 'トレイ管理',
+    vi: 'Quản lý Khay',
+    scope: 'トレイ',
+    scopeIcon: 'fas fa-box',
+    showSearch: true,
+  },
+  cutter: {
+    icon: 'fas fa-cut',
+    color: '#ea580c',
+    ja: 'カッター管理',
+    vi: 'Quản lý Dao cắt',
+    scope: 'カッター',
+    scopeIcon: 'fas fa-cut',
+    showSearch: false,
+  },
+};
+
+let currentModule = 'search';
+
+function switchModule(mod) {
+  if (!MODULE_CONFIG[mod]) return;
+  currentModule = mod;
+  const cfg = MODULE_CONFIG[mod];
+
+  // panels
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('panel-' + mod);
+  if (target) target.classList.add('active');
+
+  // topbar icon + label
+  document.getElementById('topbar-icon').innerHTML = `<i class="${cfg.icon}"></i>`;
+  document.getElementById('topbar-icon').style.background = cfg.color;
+  document.getElementById('topbar-ja').textContent = cfg.ja;
+  document.getElementById('topbar-vi').textContent = cfg.vi;
+
+  // search scope pill — clearly shows which module search applies to
+  document.getElementById('searchScopeLabel').textContent = cfg.scope;
+  document.getElementById('searchScopePill').querySelector('i').className = cfg.scopeIcon;
+
+  // show/hide search for modules that don't use global search
+  const searchWrap = document.getElementById('globalSearchWrap');
+  searchWrap.style.opacity = cfg.showSearch ? '1' : '0.4';
+  searchWrap.style.pointerEvents = cfg.showSearch ? '' : 'none';
+  document.getElementById('searchInput').placeholder = cfg.showSearch
+    ? 'コード・製品名・位置・会社名 / Mã, tên, vị trí, công ty...'
+    : 'このモジュールは独自検索を使用 / Module này dùng tìm kiếm riêng';
+
+  // nav active
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + mod);
+  if (navEl) navEl.classList.add('active');
+
+  // ms buttons
+  document.querySelectorAll('.ms-btn').forEach(b => b.classList.remove('active'));
+  const msEl = document.getElementById('ms-' + mod);
+  if (msEl) msEl.classList.add('active');
+}
+
+/* ============================================================
+   PLASTIC TAB SWITCHER
+   ============================================================ */
+function switchPlasticTab(btn, tabId) {
+  document.querySelectorAll('#plasticTabs .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // In real app, show/hide sub-views here
+}
+
+/* ============================================================
+   PERIOD TABS
+   ============================================================ */
+function activePeriod(btn) {
+  btn.closest('.period-tabs').querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
