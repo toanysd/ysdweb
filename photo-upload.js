@@ -1,3 +1,4 @@
+// v9.0.2-2
 /* ============================================================
    PHOTO UPLOAD v8.5.9
    Module chụp / upload / chỉnh sửa ảnh khuôn–dao cắt & vị trí
@@ -44,7 +45,7 @@
     '<div class="pu-section pu-section-photo" id="puSectionPhoto">',
     '  <div class="pu-section-header" data-toggle="puSectionPhoto">',
     '    <i class="fas fa-images pu-section-icon"></i>',
-    '    <div class="pu-section-title" style="display:flex; align-items:center; gap:6px;">',
+    '    <div class="pu-section-title" style="display:flex; flex-direction:row; align-items:flex-end; gap:6px;">',
     '      <span class="pu-ja" style="font-weight:800; font-size:14px; color:#1e293b;">写真 <span style="font-size:12px; font-weight:600; color:#64748b;">(Ảnh)</span> <span id="puPhotoCountBadge" style="color:#3b82f6; font-size:13px; margin-left:4px;"></span></span>',
     '    </div>',
     '    <i class="fas fa-chevron-down pu-section-chevron"></i>',
@@ -89,7 +90,7 @@
     '<div class="pu-section pu-section-device" id="puSectionDevice">',
     '  <div class="pu-section-header" data-toggle="puSectionDevice">',
     '    <i class="fas fa-microchip pu-section-icon"></i>',
-    '    <div class="pu-section-title" style="display:flex; align-items:center; gap:6px;">',
+    '    <div class="pu-section-title" style="display:flex; flex-direction:row; align-items:flex-end; gap:6px;">',
     '      <span class="pu-ja" style="font-weight:800; font-size:14px; color:#1e293b;">デバイス情報 <span style="font-size:12px; font-weight:600; color:#64748b;">(Thông tin thiết bị)</span></span>',
     '    </div>',
     '    <i class="fas fa-chevron-down pu-section-chevron"></i>',
@@ -154,11 +155,9 @@
     '      </div>',
     '    </div>',
     /* Weight */
-    '    <div class="pu-field-inline" id="puWeightRow">',
-    '      <span class="pu-il-label">重量 (kg)<br>Khối lượng</span>',
-    '      <input type="number" step="0.01" class="pu-input" id="puWeight" placeholder="0.0">',
-    '      <span class="pu-ibadge pu-ibadge-auto pu-hidden" id="puWeightBadge" title="自動"><i class="fas fa-link"></i></span>',
-    '      <span class="pu-ibadge pu-ibadge-manual pu-hidden" id="puWeightBadgeM" title="手動"><i class="fas fa-pen"></i></span>',
+    '    <div class="pu-field-inline" id="puWeightRow" style="flex-wrap: wrap;">',
+    '      <span class="pu-il-label">重量 /<br>Khối lượng</span>',
+    '      <button class="pu-btn" id="puQuickWeightUpdateBtn" type="button" style="flex:1; padding: 10px 12px; font-size: 13px; margin-left: 0px; background: #fef3c7; color: #b45309; border: 1.5px dashed #f59e0b; border-radius: 8px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;"><i class="fas fa-edit"></i> 重量入力フォームを開く / Mở Form Nhập Khối Lượng</button>',
     '    </div>',
     /* Notes */
     '    <div class="pu-field-inline">',
@@ -181,7 +180,7 @@
     '<div class="pu-section pu-section-setting" id="puSectionSetting">',
     '  <div class="pu-section-header" data-toggle="puSectionSetting">',
     '    <i class="fas fa-cog pu-section-icon"></i>',
-    '    <div class="pu-section-title" style="display:flex; align-items:center; gap:6px;">',
+    '    <div class="pu-section-title" style="display:flex; flex-direction:row; align-items:flex-end; gap:6px;">',
     '      <span class="pu-ja" style="font-weight:800; font-size:14px; color:#1e293b;">送信設定 <span style="font-size:12px; font-weight:600; color:#64748b;">(Cài đặt gửi)</span></span>',
     '    </div>',
     '    <i class="fas fa-chevron-down pu-section-chevron"></i>',
@@ -484,16 +483,16 @@
     this.lockPageScroll();
   };
 
-  PhotoUploadModule.prototype._checkCameraAvailability = function() {
+  PhotoUploadModule.prototype._checkCameraAvailability = function () {
     var btn = document.getElementById('puAsTakePhoto');
     if (!btn) return;
 
-    var transformToUpload = function() {
+    var transformToUpload = function () {
       btn.innerHTML = '<i class="fas fa-upload"></i> ファイルを選択 / Tải ảnh lên';
       btn.dataset.isUploadFallback = 'true';
     };
 
-    var restoreCamera = function() {
+    var restoreCamera = function () {
       btn.innerHTML = '<i class="fas fa-camera"></i> カメラで撮影 / Chụp ảnh';
       btn.dataset.isUploadFallback = 'false';
     };
@@ -502,15 +501,15 @@
       transformToUpload();
       return;
     }
-    
-    navigator.mediaDevices.enumerateDevices().then(function(devices) {
-      var hasCamera = devices.some(function(d) { return d.kind === 'videoinput'; });
+
+    navigator.mediaDevices.enumerateDevices().then(function (devices) {
+      var hasCamera = devices.some(function (d) { return d.kind === 'videoinput'; });
       if (!hasCamera) {
-          transformToUpload();
+        transformToUpload();
       } else {
-          restoreCamera();
+        restoreCamera();
       }
-    }).catch(function() {
+    }).catch(function () {
       transformToUpload();
     });
   };
@@ -615,7 +614,7 @@
       '/* PhotoUpload inline styles v8.4.5-2-1 */',
       '.pu-camera-overlay { position: fixed; top: 0; bottom: 0; left: 0; right: 0; background: #000; z-index: 2147483609 !important; display: flex; flex-direction: column; }',
       '.pu-camera-video-wrap { flex: 1; position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; }',
-      '.pu-camera-video { width: 100%; height: 100%; object-fit: cover; }',
+      '.pu-camera-video { width: 100%; height: 100%; object-fit: contain; background: #000; }',
       '.pu-camera-toolbar { height: 100px; padding-bottom: env(safe-area-inset-bottom, 20px); background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: space-around; }',
       '.pu-camera-shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 4px solid #cbd5e1; box-shadow: 0 0 0 4px #000 inset; cursor:pointer; padding:0; margin:0; outline:none; transition: transform 0.1s; }',
       '.pu-camera-shutter:active { transform: scale(0.95); background: #e2e8f0; }',
@@ -1046,9 +1045,9 @@
         if (asOv) asOv.classList.add('pu-hidden');
 
         if (btnAsTakePhoto.dataset.isUploadFallback === 'true') {
-           var fileInputGeneric = document.getElementById('puFileInputGeneric');
-           if (fileInputGeneric) fileInputGeneric.click();
-           return;
+          var fileInputGeneric = document.getElementById('puFileInputGeneric');
+          if (fileInputGeneric) fileInputGeneric.click();
+          return;
         }
 
         var secCheck = document.getElementById('puSecurityConfirmCheck');
@@ -1240,6 +1239,43 @@
       emailInput.addEventListener('blur', function () {
         var v = emailInput.value.trim();
         if (v) { self._addEmailChip(v); emailInput.value = ''; }
+      });
+    }
+
+    /* Weight Update Button */
+    var weightBtn = document.getElementById('puQuickWeightUpdateBtn');
+    if (weightBtn) {
+      weightBtn.addEventListener('click', function () {
+        if (!self._device || !self._device.id) {
+          self._toast('warning', 'Vui lòng chọn khuôn/khay trước khi cập nhật khối lượng.');
+          return;
+        }
+        if (window.QuickUpdateModule) {
+          /* ── Tạm ẩn Photo Upload overlay để tránh xung đột stacking context ── */
+          var puOv = document.getElementById('puOverlay');
+          if (puOv) puOv.style.display = 'none';
+
+          window.QuickUpdateModule.openModal('WEIGHT', {
+            MoldID: self._device.type === 'mold' ? self._device.id : null,
+            CutterID: self._device.type === 'cutter' ? self._device.id : null,
+            TrayID: self._device.type === 'tray' ? self._device.id : null
+          }, {
+            onSuccess: function (fields) {
+              var w = fields.MoldWeightModified || fields.TrayWeight || '';
+              if (w) {
+                var label = fields.MoldWeightModified ? "金型重量" : "トレイ重量";
+                var input = document.getElementById('puWeight');
+                if (input) input.value = label + " " + w + " kg";
+              }
+              /* ── Khôi phục Photo Upload overlay ── */
+              if (puOv) puOv.style.display = '';
+            },
+            onClose: function () {
+              /* ── Khôi phục Photo Upload overlay khi đóng (kể cả khi hủy) ── */
+              if (puOv) puOv.style.display = '';
+            }
+          });
+        }
       });
     }
 
@@ -1871,7 +1907,7 @@
     }
 
     // Yêu cầu độ phân giải cao nhất
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: self._facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: self._facingMode, width: { ideal: 4096 }, height: { ideal: 4096 } }, audio: false })
       .then(function (stream) {
         self._cameraStream = stream;
         video.srcObject = stream;
@@ -1905,16 +1941,11 @@
     var video = document.getElementById('puCameraVideo');
     if (!video) return;
     var canvas = document.createElement('canvas');
-    var vw = video.clientWidth, vh = video.clientHeight;
     var sw = video.videoWidth, sh = video.videoHeight;
-    var scale = Math.max(vw / sw, vh / sh);
-    var cw = vw / scale;
-    var ch = vh / scale;
-    var cx = (sw - cw) / 2;
-    var cy = (sh - ch) / 2;
-    canvas.width = cw;
-    canvas.height = ch;
-    canvas.getContext('2d').drawImage(video, cx, cy, cw, ch, 0, 0, cw, ch);
+    // Bỏ crop UI dài, dùng đúng độ phân giải và tỷ lệ gốc của cảm biến
+    canvas.width = sw;
+    canvas.height = sh;
+    canvas.getContext('2d').drawImage(video, 0, 0, sw, sh);
     var self = this;
     canvas.toBlob(function (blob) {
       if (!blob) return;
@@ -2220,21 +2251,12 @@
       self._stopCamera();
     }
 
-    // Weight Update
+    // Weight Update (Chỉ ghi text vào notes)
     var weightInput = (document.getElementById('puWeight') || {}).value || '';
-    if (weightInput && deviceId && (deviceType === 'mold' || deviceType === 'cutter' || deviceType === 'tray')) {
-      var fn = (deviceType === 'tray') ? 'tray.csv' : (deviceType === 'cutter' ? 'cutters.csv' : 'molds.csv');
-      var idF = (deviceType === 'tray') ? 'TrayID' : (deviceType === 'cutter' ? 'CutterID' : 'MoldID');
-      var wF = (deviceType === 'tray') ? 'TrayWeight' : (deviceType === 'cutter' ? 'CutterWeightModified' : 'MoldWeightModified');
-      var fieldsParam = {}; fieldsParam[wF] = weightInput;
-      try {
-        fetch('/api/csv/upsert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: fn, idField: idF, recordId: deviceId, op: 'update', fields: fieldsParam })
-        }).catch(function (e) { console.warn(e); });
-      } catch (we) { console.warn(we); }
+    if (weightInput) {
+      notes = notes ? (notes + '\n[' + weightInput + ']') : '[' + weightInput + ']';
     }
+
     var results = [];
     var errors = [];
 

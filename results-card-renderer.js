@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
    RESULTS CARD RENDERER v8.0.4-3
    Exact Copy from Mockup r8.1.0 Design
@@ -289,7 +290,7 @@ class ResultsCardRenderer {
                 }
 
 
-                // Build Popup
+                // Build Popup FIRST
                 const popup = document.createElement('div');
                 popup.style.position = 'fixed';
                 popup.style.inset = '0';
@@ -303,35 +304,11 @@ class ResultsCardRenderer {
 
                 let imgHtml = `
                     <style>
-                        .rack-popup-img { width:100%; max-height:40vh; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; cursor:zoom-in; transition:all 0.3s ease; display:block; }
-                        /* .zoomed-img has been deprecated globally in favor of window.openGlobalPhotoZoom() */
+                        .rack-popup-img { width:100%; height:100%; object-fit:contain; border-radius:8px; cursor:zoom-in; transition:opacity 0.3s ease; display:block; opacity: 0; position:absolute; inset:0; }
                     </style>
-                    <div style="padding:40px; background:#f1f5f9; text-align:center; color:#94a3b8; border-radius:8px;"><i class="fas fa-image fa-3x" style="margin-bottom:8px;"></i><p style="margin:0; font-size:12px; font-weight:600;">画像なし <span style="font-weight:400;">/ Không có ảnh</span></p></div>`;
-                if (window.DevicePhotoStore) {
-                    let fullUrl = '';
-                    // Lấy ảnh gốc thay vì thumbnail để tránh bị mờ
-                    const fetchOrgPhoto = async (type, id) => {
-                        const strId = String(id || '').trim();
-                        if (!strId || strId === '0' || strId === '0-0' || strId === '?') return '';
-                        let row = null;
-                        if (typeof window.DevicePhotoStore.listForDevice === 'function') {
-                            const rows = await window.DevicePhotoStore.listForDevice(type, strId, { state: 'active', limit: 1 });
-                            row = Array.isArray(rows) ? (rows[0] || null) : null;
-                        } else if (typeof window.DevicePhotoStore.getPhotos === 'function') {
-                            const r = await window.DevicePhotoStore.getPhotos({ deviceType: type, deviceId: strId, limit: 1 });
-                            const data = r && Array.isArray(r.data) ? r.data : (Array.isArray(r) ? r : []);
-                            row = data[0] || null;
-                        }
-                        return row ? String(row.public_url || row.publicurl || row.publicUrl || '') : '';
-                    };
-
-                    fullUrl = await fetchOrgPhoto('racklayer', popupLayerId);
-                    if (!fullUrl) fullUrl = await fetchOrgPhoto('rack', popupRackId);
-
-                    if (fullUrl) {
-                        imgHtml = imgHtml.replace(/<div.*?<\/div>/, `<img class="rack-popup-img" src="${fullUrl}" onclick="if(window.openGlobalPhotoZoom) window.openGlobalPhotoZoom(this.src);" />`);
-                    }
-                }
+                    <div id="rackPopupImgContainer" style="position:relative; width:100%; height: 35vh; min-height: 200px; max-height: 400px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:8px; border:1px solid #e2e8f0; overflow:hidden;">
+                        <i id="rackPopupSpinner" class="fas fa-spinner fa-spin" style="font-size:2rem; color:#94a3b8; position:absolute; z-index:2;"></i>
+                    </div>`;
 
                 popup.innerHTML = `
                     <div style="background:#fff; border-radius:12px; width:100%; max-width:420px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2); position:relative;">
@@ -395,6 +372,55 @@ class ResultsCardRenderer {
                 }
 
                 document.body.appendChild(popup);
+
+                // Asynchronously fetch photo after DOM logic finishes
+                setTimeout(async () => {
+                    let fullUrl = '';
+                    const container = document.getElementById('rackPopupImgContainer');
+                    if (!container || !document.body.contains(popup)) return; // Check if still in DOM
+
+                    if (window.DevicePhotoStore) {
+                        const fetchOrgPhoto = async (type, id) => {
+                            const strId = String(id || '').trim();
+                            if (!strId || strId === '0' || strId === '0-0' || strId === '?') return '';
+                            let row = null;
+                            if (typeof window.DevicePhotoStore.listForDevice === 'function') {
+                                const rows = await window.DevicePhotoStore.listForDevice(type, strId, { state: 'active', limit: 1 });
+                                row = Array.isArray(rows) ? (rows[0] || null) : null;
+                            } else if (typeof window.DevicePhotoStore.getPhotos === 'function') {
+                                const r = await window.DevicePhotoStore.getPhotos({ deviceType: type, deviceId: strId, limit: 1 });
+                                const data = r && Array.isArray(r.data) ? r.data : (Array.isArray(r) ? r : []);
+                                row = data[0] || null;
+                            }
+                            return row ? String(row.public_url || row.publicurl || row.publicUrl || '') : '';
+                        };
+
+                        fullUrl = await fetchOrgPhoto('racklayer', popupLayerId);
+                        if (!fullUrl) fullUrl = await fetchOrgPhoto('rack', popupRackId);
+                    }
+
+                    if (!document.body.contains(popup)) return;
+
+                    if (fullUrl) {
+                        const img = document.createElement('img');
+                        img.className = 'rack-popup-img';
+                        img.style.position = 'relative';
+                        img.style.zIndex = '3';
+                        img.onload = () => {
+                            const spinner = document.getElementById('rackPopupSpinner');
+                            if (spinner) spinner.style.display = 'none';
+                            img.style.opacity = '1';
+                        };
+                        img.onerror = () => {
+                            container.innerHTML = `<div style="padding:40px; text-align:center; color:#94a3b8;"><i class="fas fa-image fa-3x" style="margin-bottom:8px;"></i><p style="margin:0; font-size:12px; font-weight:600;">画像なし <span style="font-weight:400;">/ Không có ảnh</span></p></div>`;
+                        };
+                        img.onclick = () => { if (window.openGlobalPhotoZoom) window.openGlobalPhotoZoom(img.src); };
+                        img.src = fullUrl;
+                        container.appendChild(img);
+                    } else {
+                        container.innerHTML = `<div style="padding:40px; text-align:center; color:#94a3b8;"><i class="fas fa-image fa-3x" style="margin-bottom:8px;"></i><p style="margin:0; font-size:12px; font-weight:600;">画像なし <span style="font-weight:400;">/ Không có ảnh</span></p></div>`;
+                    }
+                }, 10);
             }
         });
 
@@ -612,7 +638,7 @@ class ResultsCardRenderer {
         menu.style.left = left + 'px';
         menu.style.top = top + 'px';
 
-        const code = item.code || item.MoldCode || item.CutterNo || item.displayCode || '';
+        const code = item.code || item.MoldTrayName || item.MoldCode || item.CutterNo || item.displayCode || '';
         const itemType = item.type || 'mold';
 
         // Styling chung của button con
@@ -800,8 +826,8 @@ class ResultsCardRenderer {
         const card = document.createElement('div');
         card.className = 'result-card';
 
-        const itemId = item.type === 'mold' ? item.MoldID : item.CutterID;
-        const uid = (item.type === 'mold' ? 'M_' : 'C_') + itemId;
+        const itemId = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+        const uid = (item.type === 'tray' ? 'T_' : (item.type === 'mold' ? 'M_' : 'C_')) + itemId;
         card.dataset.id = itemId;
         card.dataset.type = item.type;
         card.dataset.uid = uid; // Đánh dấu UID V8.5
@@ -812,16 +838,16 @@ class ResultsCardRenderer {
         }
 
         // Get data with correct mapping
-        const code = item.type === 'mold' ? (item.MoldCode || '') : (item.CutterNo || '');
+        const code = item.type === 'tray' ? ('Khay ' + item.TrayID) : (item.type === 'mold' ? (item.MoldCode || '') : (item.CutterNo || ''));
 
         // Product name: Priority TrayInfoForMoldDesign > MoldName/CutterName
         let productName = '';
         if (item.designInfo && item.designInfo.TrayInfoForMoldDesign) {
             productName = item.designInfo.TrayInfoForMoldDesign;
         } else {
-            productName = item.type === 'mold'
-                ? (item.MoldName || '')
-                : (item.CutterName || item.CutterDesignName || '');
+            productName = item.type === 'tray'
+                ? (item.MoldTrayName || '')
+                : (item.type === 'mold' ? (item.MoldName || '') : (item.CutterName || item.CutterDesignName || ''));
         }
 
         const dimensions = item.dimensions || 'N/A';
@@ -867,9 +893,9 @@ class ResultsCardRenderer {
         const company = item.company || '-';
 
         // Type info
-        const itemType = item.type === 'mold' ? 'mold' : 'cutter';
-        const typeBadge = item.type === 'mold' ? '金型' : '抜型';
-        const typeIcon = item.type === 'mold' ? 'cube' : 'cut';
+        const itemType = item.type === 'tray' ? 'tray' : (item.type === 'mold' ? 'mold' : 'cutter');
+        const typeBadge = item.type === 'tray' ? 'トレイ' : (item.type === 'mold' ? '金型' : '抜型');
+        const typeIcon = item.type === 'tray' ? 'box' : (item.type === 'mold' ? 'cube' : 'cut');
 
         // Card HTML - Exact mockup structure r8.1.0
         card.innerHTML = `
@@ -924,15 +950,78 @@ class ResultsCardRenderer {
                     
                     <!-- Row 1: Location & Status -->
                     <div style="display:flex; justify-content:space-between; align-items:stretch; gap: 8px; width:100%;">
-                        <!-- Location - Blue/Orange (clickable) -->
-                        <div class="meta-item location location-link"
-                             data-rack-id="${rackLocation.rackId || ''}" 
-                             data-layer-id="${rackLocation.rackLayerId || ''}"
-                             style="cursor: pointer; flex:1; display:flex; align-items:center; justify-content:center; font-size: 13px; font-weight: bold; padding: 6px 8px; background: ${rackLocation.isExternal ? '#fff7ed' : '#e0f2fe'}; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color: ${rackLocation.isExternal ? '#c2410c' : '#0369a1'}; transition: background 0.2s;">
-                            <img class="card-thumb-img" data-devicetype="${rackLocation.rackLayerId ? 'racklayer' : (rackLocation.rackId ? 'rack' : '')}" data-deviceid="${rackLocation.rackLayerId || rackLocation.rackId || ''}" src="" style="display:none; width: 16px; height: 16px; border-radius: 3px; margin-right: 4px; object-fit: cover;">
-                            <i class="placeholder-icon fas ${rackLocation.isExternal ? 'fa-building' : 'fa-map-marker-alt'}" style="margin-right:4px; color:${rackLocation.isExternal ? '#ea580c' : '#0284c7'};"></i>
-                            <span>${location}</span>
-                        </div>
+                        <!-- Location - Dynamic Multi-layer (clickable) -->
+                        ${(() => {
+                const isOutLocal = statusClassRaw === 'out' || statusClassRaw === 'ng';
+                const isExternalLocal = rackLocation.isExternal;
+
+                const pureRackText = (rackLocation.rackId || rackLocation.layerNum)
+                    ? `${rackLocation.rackId}-${rackLocation.layerNum}`
+                    : (rackLocation.display === '-' ? '未定' : rackLocation.display);
+
+                const locStr = rackLocation.rackLocationStr && rackLocation.rackLocationStr !== '-' ? rackLocation.rackLocationStr : '保管エリア';
+
+                // 1. External (Stored at another company)
+                // - Triggers when isExternalLocal is TRUE, REGARDLESS OF IN / OUT status.
+                // - Top layer: Company Name
+                // - Bottom layer: Return location at YSD (if null -> 未定)
+                if (isExternalLocal) {
+                    const companyName = rackLocation.externalName || item.displayStorageCompany || '社外';
+                    let textReturn = pureRackText;
+                    if (!rackLocation.rackId || rackLocation.rackLayerId === '0' || rackLocation.rackId === '0') textReturn = '未定';
+
+                    return `
+                                <div class="meta-item location location-link loc-out-outside"
+                                     data-rack-id="${rackLocation.rackId || ''}" 
+                                     data-layer-id="${rackLocation.rackLayerId || ''}">
+                                    <div style="font-size:13px; font-weight:900; color:#ea580c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">
+                                        <i class="fas fa-building"></i> 現在：${companyName}
+                                    </div>
+                                    <div style="font-size:9px; color:#c2410c; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; display:flex; align-items:center; gap:4px;">
+                                        <i class="fas fa-undo"></i> 返却先：${textReturn}
+                                    </div>
+                                </div>`;
+                }
+
+                // 2. Normal (IN YSD)
+                if (!isOutLocal) {
+                    if (rackLocation.display === '-' || !rackLocation.rackId) {
+                        return `
+                                <div class="meta-item location location-link loc-normal"
+                                     data-rack-id="${rackLocation.rackId || ''}" 
+                                     data-layer-id="${rackLocation.rackLayerId || ''}">
+                                    <i class="placeholder-icon fas fa-map-marker-alt" style="margin-right:4px;"></i>
+                                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">未定</span>
+                                </div>`;
+                    }
+                    return `
+                                <div class="meta-item location location-link loc-normal"
+                                     data-rack-id="${rackLocation.rackId || ''}" 
+                                     data-layer-id="${rackLocation.rackLayerId || ''}"
+                                     style="padding: 4px 8px !important; flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); gap: 2px;">
+                                    <div style="font-size:13px; font-weight:900; color:#0369a1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">
+                                        <i class="fas fa-layer-group"></i> ${pureRackText}
+                                    </div>
+                                    <div style="font-size:9px; color:#0284c7; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; display:flex; align-items:center; gap:4px;">
+                                        <i class="fas fa-map-marker-alt"></i> ${locStr}
+                                    </div>
+                                </div>`;
+                }
+
+                // 3. Out inside YSD
+                const dest = statusInfo.outDestName || '未定';
+                return `
+                            <div class="meta-item location location-link loc-out-inside"
+                                 data-rack-id="${rackLocation.rackId || ''}" 
+                                 data-layer-id="${rackLocation.rackLayerId || ''}">
+                                <div style="font-size:13px; font-weight:900; color:#d97706; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">
+                                    <i class="fas fa-map-marker-alt"></i> ${dest}
+                                </div>
+                                <div style="font-size:9px; color:#a16207; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; display:flex; align-items:center; gap:4px;">
+                                    <i class="fas fa-undo"></i> 返却先：${pureRackText}
+                                </div>
+                            </div>`;
+            })()}
                         
                         <!-- Status Badge -->
                         <div class="meta-item status status-badge ${badgeClass}" style="flex:1; display:flex; align-items:center; justify-content:center; font-size: 12px; font-weight: bold; padding: 6px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); white-space:nowrap; cursor:pointer; transition: opacity 0.2s; ${statusInfo.status ? '' : 'background: var(--mcs-neutral-light); color: var(--mcs-neutral);'}" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Nhấp để thay đổi trạng thái (Nhập/Xuất kho)">
@@ -1282,10 +1371,37 @@ class ResultsCardRenderer {
         });
 
         const latest = logs[0];
+
+        const statusStr = String(latest.Status || latest.Action || '').trim();
+        let extractedDest = '';
+        const parenMatch = statusStr.match(/^(.*?)\s*[\(\（](.*?)[\)\）]$/);
+        if (parenMatch) {
+            extractedDest = parenMatch[2].trim();
+        } else if (statusStr.toUpperCase().startsWith('OUT ') && statusStr.length > 4) {
+            extractedDest = statusStr.substring(4).trim();
+        }
+
+        let outDestName = extractedDest || latest.DestinationName || latest.DestName || latest.Destination || '';
+        if (!outDestName) {
+            const destId = latest.DestinationID || latest.OutDestinationID || latest.Destination || item.OutDestinationID || item.DestinationID || '';
+            if (destId && window.DataManager) {
+                let dests = [];
+                if (window.DataManager.data && window.DataManager.data.destinations) dests = window.DataManager.data.destinations;
+                else if (window.DataManager.destinations) dests = window.DataManager.destinations;
+                else if (window.DataManager.getData) dests = window.DataManager.getData('destinations') || [];
+                else if (window.db_destinations) dests = window.db_destinations;
+
+                const d = dests.find(x => String(x.DestinationID) === String(destId));
+                if (d) outDestName = d.DestinationName || d.DestinationShortName || destId;
+                else outDestName = destId;
+            }
+        }
+
         return {
             status: latest.Status || null,
             date: latest.Timestamp || null,
-            notes: latest.Notes || ''
+            notes: latest.Notes || '',
+            outDestName: outDestName
         };
     }
 
@@ -1293,16 +1409,20 @@ class ResultsCardRenderer {
      * Lấy thông tin vị trí dạng RackID-RackLayerNumber hoặc tên Công ty bảo quản
      */
     getRackLocation(item) {
-        // Logic mới: Nếu KeeperCompany khác rỗng và không phải là Bản xưởng (CompanyID=1 hoặc 2) -> hiển thị Tên Công ty
-        if (item.keeperCompanyInfo && item.keeperCompanyInfo.CompanyName &&
-            item.KeeperCompany && String(item.KeeperCompany) !== '1' && String(item.KeeperCompany) !== '2') {
-            const cName = item.keeperCompanyInfo.CompanyShortName || item.keeperCompanyInfo.CompanyName;
+        // Logic tối ưu nhất: Nhận diện External trực tiếp từ thuộc tính phân giải của SearchModule
+        const isExternal = item.displayStorageCompanyClass === 'external' ||
+            (item.KeeperCompany && String(item.KeeperCompany) !== '1' && String(item.KeeperCompany) !== '2');
+
+        const cName = item.displayStorageCompany || item.keeperCompanyInfo?.CompanyShortName || item.keeperCompanyInfo?.CompanyName || item.KeeperCompany || '';
+
+        if (isExternal && cName && cName.toUpperCase() !== 'YSD') {
             return {
                 display: `Tại: ${cName}`,
                 rackId: null,
                 layerNum: null,
                 rackLayerId: null,
-                isExternal: true
+                isExternal: true,
+                externalName: cName
             };
         }
 
@@ -1333,12 +1453,14 @@ class ResultsCardRenderer {
         );
 
         const rackName = rack?.RackName || rackId;
+        const rackLocationStr = rack?.RackLocation || item?.displayRackLocation || item?.displayLocation || '-';
 
         return {
             display: `${rackName}-${layerNum}`,
             rackId: rackId,
             layerNum: layerNum,
-            rackLayerId: rackLayerId
+            rackLayerId: rackLayerId,
+            rackLocationStr: rackLocationStr
         };
     }
 

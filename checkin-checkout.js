@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
 checkin-checkout-v8.4.6.js
 MoldCutterSearch - Check-in / Check-out (flow kiểu máy chấm công)
@@ -563,7 +564,7 @@ Ghi chú:
     var html = '';
     logs.forEach(function (l) {
       var st = String(l.Status || '').toUpperCase();
-      var badgeCls = (st === 'IN') ? 'in' : ((st === 'OUT') ? 'out' : '');
+      var badgeCls = (st === 'IN') ? 'in' : ((st === 'OUT') ? 'out' : ((st === 'AUDIT' || st === '棚卸し' || st === '棚卸') ? 'audit' : ''));
       var badge = '<span class="cio-recent-st ' + escapeHtml(badgeCls) + '">' + escapeHtml(st || '-') + '</span>';
 
       var dest = getDestinationName(l.DestinationID) || '-';
@@ -668,6 +669,7 @@ Ghi chú:
       '<div class="cio-stamp cio-stamp-v846">' +
       '<button type="button" class="cio-stamp-btn in" id="cio-stamp-in"><div class="ja">IN</div><div class="vi">Nhập kho</div></button>' +
       '<button type="button" class="cio-stamp-btn out" id="cio-stamp-out"><div class="ja">OUT</div><div class="vi">Xuất kho</div></button>' +
+      '<button type="button" class="cio-stamp-btn audit" id="cio-stamp-audit" style="background:#0ea5e9;border-color:#0284c7;color:#fff;"><div class="ja">棚卸</div><div class="vi">Kiểm kê</div></button>' +
       '<button type="button" class="cio-stamp-btn relocate" id="cio-stamp-relocate"><div class="ja">位置変更</div><div class="vi">Thay đổi vị trí</div></button>' +
       '</div>' +
 
@@ -722,7 +724,7 @@ Ghi chú:
     }
 
     el.textContent = st;
-    el.className = 'cio-status-pill ' + (st === 'IN' ? 'in' : 'out');
+    el.className = 'cio-status-pill ' + (st === 'IN' ? 'in' : (st === 'OUT' ? 'out' : 'audit'));
   }
 
   function updateEmpButton() {
@@ -1431,6 +1433,51 @@ Ghi chú:
     });
   }
 
+  function doStampAudit() {
+    if (!currentItem) return;
+
+    // Audit requires employee, optionally dest
+    ensureEmpThen(function (empId) {
+      var cfg = getCfg();
+      // Dest is optional, or current location
+      var destId = selectedDestId || (currentItem ? getLastKnownDestinationId(currentItem) : '');
+
+      var logData = createLogData('audit', currentItem, empId, destId);
+      logData.Status = 'AUDIT';
+      var pending = addPendingLocal(logData);
+
+      if (typeof window.showGlobalSync === 'function') window.showGlobalSync();
+      showToast('warning', '', 'Đã ghi kiểm kê, đang đồng bộ');
+      fireDetailChanged('checkin-audit');
+
+      close();
+      if (global.app && typeof global.app.detailPanel?.close === 'function') {
+        global.app.detailPanel.close();
+      } else {
+        var dp = document.getElementById('detailPanel');
+        if (dp) dp.classList.remove('active');
+        var bd = document.getElementById('backdrop');
+        if (bd) bd.classList.remove('active');
+      }
+
+      syncLog('audit', currentItem, logData, pending)
+        .then(function () {
+          if (typeof window.hideGlobalSync === 'function') window.hideGlobalSync();
+          showToast('success', '', 'Đã Kiểm Kê');
+        })
+        .catch(function () {
+          if (typeof window.hideGlobalSync === 'function') window.hideGlobalSync();
+          showToast('error', '', 'Lỗi đồng bộ (đã lưu tạm)');
+        });
+      try {
+        document.dispatchEvent(new CustomEvent('data-manager-updated', { detail: { source: 'checkinout', table: 'statuslogs' } }));
+      } catch (e0) { }
+
+    }, function () {
+      // cancel
+    });
+  }
+
   // ----------------------------- Relocate Action -----------------------------
   function resolveRackLayerInfo(layerId) {
     var id = String(layerId || '').trim();
@@ -2069,6 +2116,7 @@ Ghi chú:
 
     var stampIn = document.getElementById('cio-stamp-in');
     var stampOut = document.getElementById('cio-stamp-out');
+    var stampAudit = document.getElementById('cio-stamp-audit');
     var stampRelocate = document.getElementById('cio-stamp-relocate');
 
     if (stampIn && stampIn.dataset.bound !== '1') {
@@ -2078,6 +2126,10 @@ Ghi chú:
     if (stampOut && stampOut.dataset.bound !== '1') {
       stampOut.dataset.bound = '1';
       stampOut.addEventListener('click', doStampOut);
+    }
+    if (stampAudit && stampAudit.dataset.bound !== '1') {
+      stampAudit.dataset.bound = '1';
+      stampAudit.addEventListener('click', doStampAudit);
     }
     if (stampRelocate && stampRelocate.dataset.bound !== '1') {
       stampRelocate.dataset.bound = '1';

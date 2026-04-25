@@ -33,9 +33,9 @@ app.options(/.*/, cors(corsOptions));
 app.use(bodyParser.json({ limit: '4mb' }));
 
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-const owner = process.env.GITHUB_OWNER;
-const repo = process.env.GITHUB_REPO;
-const branch = process.env.GITHUB_BRANCH;
+const owner = process.env.GITHUB_OWNER || 'toanysd';
+const repo = 'MoldCutterSearch';
+const branch = process.env.GITHUB_BRANCH || 'main';
 const DATA_PATH_PREFIX = 'Data/';
 
 // ============================================
@@ -84,9 +84,9 @@ const FILE_HEADERS = {
 
   'statuslogs.csv': ['StatusLogID', 'MoldID', 'CutterID', 'ItemType', 'Status', 'Timestamp', 'EmployeeID', 'DestinationID', 'Notes', 'AuditDate', 'AuditType', 'SessionID', 'SessionName', 'SessionMode'],
 
-  'teflonlog.csv': ['TeflonLogID', 'MoldID', 'TeflonStatus', 'RequestedBy', 'RequestedDate', 'ApprovedBy', 'ApprovedDate','SentBy', 'SentDate', 'ExpectedDate', 'ReceivedDate', 'SupplierID', 'CoatingType', 'Reason', 'TeflonCost', 'Quality', 'TeflonNotes', 'CreatedDate', 'UpdatedBy', 'UpdatedAt'],
+  'teflonlog.csv': ['TeflonLogID', 'MoldID', 'TeflonStatus', 'RequestedBy', 'RequestedDate', 'ApprovedBy', 'ApprovedDate', 'SentBy', 'SentDate', 'ExpectedDate', 'ReceivedDate', 'SupplierID', 'CoatingType', 'Reason', 'TeflonCost', 'Quality', 'TeflonNotes', 'CreatedDate', 'UpdatedBy', 'UpdatedAt'],
 
-  'scraplog.csv': ['ScrapLogID','MoldID','CutterID','RequestedDate','Status','ScrapMethod','CompanyID','ScheduledDate','Cost','ScrappedDate','EmployeeID','Notes'],
+  'scraplog.csv': ['ScrapLogID', 'MoldID', 'CutterID', 'RequestedDate', 'Status', 'ScrapMethod', 'CompanyID', 'ScheduledDate', 'Cost', 'ScrappedDate', 'EmployeeID', 'Notes'],
 
   'destinations.csv': ['DestinationID', 'DestinationName', 'DestinationCode', 'CompanyID', 'Address', 'Notes'],
 
@@ -102,7 +102,7 @@ const FILE_HEADERS = {
 
   'machiningcustomer.csv': ['MachiningCustomerID', 'CustomerName', 'CustomerCode', 'Notes'],
 
-  'tray.csv': ['TrayID', 'TrayName', 'TrayCode', 'TrayCapacity', 'Notes'],
+  'trays.csv': ['TrayID', 'TrayName', 'TrayCode', 'TrayCapacity', 'Notes'],
 
   'worklog.csv': ['WorkLogID', 'MoldID', 'CutterID', 'EmployeeID', 'WorkDate', 'WorkType', 'Notes'],
   'datachangehistory.csv': ['DataChangeID', 'TableName', 'RecordID', 'RecordIDField', 'FieldName', 'OldValue', 'NewValue', 'ChangedAt', 'ChangedBy', 'BaseValueAtEdit', 'BaseCommitID', 'BaseCommitAt', 'ChangeSource', 'ChangeNote', 'IsConflict', 'ResolvedValue', 'ResolvedAt', 'ResolvedBy'],
@@ -155,7 +155,7 @@ const ALLOWED_CSV_FILES = new Set([
   'itemtype.csv',
   'plasticforforming.csv',
   'machiningcustomer.csv',
-  'tray.csv',
+  'trays.csv',
   'worklog.csv',
 
   // Core tables
@@ -221,8 +221,8 @@ const WRITABLE_CORE_FILES = new Set([
   'molds.csv',
   'cutters.csv',
   'molddesign.csv',
-  'tray.csv',
-  
+  'trays.csv',
+
   // Plastic Module writable
   'plastic_master.csv',
   'plastic_manufacturer_map.csv',
@@ -268,8 +268,8 @@ const TABLE_KEY_TO_FILENAME = {
   itemtype: 'itemtype.csv',
   plasticforforming: 'plasticforforming.csv',
   machiningcustomer: 'machiningcustomer.csv',
-  tray: 'tray.csv',
-  trays: 'tray.csv',
+  tray: 'trays.csv',
+  trays: 'trays.csv',
   worklog: 'worklog.csv',
   datachangehistory: 'datachangehistory.csv',
   accesscommithistory: 'accesscommithistory.csv',
@@ -1069,27 +1069,27 @@ app.post('/api/process-scrap', async (req, res) => {
     const payload = req.body || {};
     const scrapId = payload.ScrapLogID ? String(payload.ScrapLogID).trim() : '';
     const action = payload.action ? String(payload.action).trim().toLowerCase() : 'upsert';
-    
+
     if (!scrapId) return res.status(400).json({ success: false, message: 'Missing ScrapLogID' });
 
     const isMold = Boolean(payload.MoldID);
     const itemId = isMold ? payload.MoldID : payload.CutterID;
     const mainCsv = isMold ? 'molds.csv' : 'cutters.csv';
     const idField = isMold ? 'MoldID' : 'CutterID';
-    
+
     const employeeId = payload.EmployeeID || 'SYSTEM';
-    const expectedHeaders = ['ScrapLogID','MoldID','CutterID','RequestedDate','Status','ScrapMethod','CompanyID','ScheduledDate','Cost','ScrappedDate','EmployeeID','Notes'];
+    const expectedHeaders = ['ScrapLogID', 'MoldID', 'CutterID', 'RequestedDate', 'Status', 'ScrapMethod', 'CompanyID', 'ScheduledDate', 'Cost', 'ScrappedDate', 'EmployeeID', 'Notes'];
     let historyLogsToInsert = [];
 
     const pushHistory = (tName, rId, rIdField, fName, oVal, nVal, note) => {
-        if (String(oVal||'') === String(nVal||'')) return;
-        historyLogsToInsert.push({
-            DataChangeID: genId('DCH'), TableName: tName, RecordID: String(rId||''), RecordIDField: String(rIdField||''),
-            FieldName: String(fName||''), OldValue: String(oVal||''), NewValue: String(nVal||''),
-            ChangedAt: getJSTTimestamp(), ChangedBy: String(employeeId), BaseValueAtEdit: String(oVal||''),
-            BaseCommitID: '', BaseCommitAt: '', ChangeSource: 'process-scrap-v2', ChangeNote: String(note||''),
-            IsConflict: 'FALSE', ResolvedValue: '', ResolvedAt: '', ResolvedBy: ''
-        });
+      if (String(oVal || '') === String(nVal || '')) return;
+      historyLogsToInsert.push({
+        DataChangeID: genId('DCH'), TableName: tName, RecordID: String(rId || ''), RecordIDField: String(rIdField || ''),
+        FieldName: String(fName || ''), OldValue: String(oVal || ''), NewValue: String(nVal || ''),
+        ChangedAt: getJSTTimestamp(), ChangedBy: String(employeeId), BaseValueAtEdit: String(oVal || ''),
+        BaseCommitID: '', BaseCommitAt: '', ChangeSource: 'process-scrap-v2', ChangeNote: String(note || ''),
+        IsConflict: 'FALSE', ResolvedValue: '', ResolvedAt: '', ResolvedBy: ''
+      });
     };
 
     if (action === 'delete') {
@@ -1097,9 +1097,9 @@ app.post('/api/process-scrap', async (req, res) => {
       await updateCsvFileWithRetry('scraplog.csv', `Delete ScrapLog ${scrapId}`, async (records) => {
         const idx = records.findIndex(r => String(r.ScrapLogID || '').trim() === scrapId);
         if (idx >= 0) {
-            existedStatus = String(records[idx].Status || '').trim().toUpperCase();
-            records.splice(idx, 1);
-            pushHistory('scraplog', scrapId, 'ScrapLogID', 'ScrapLogID', scrapId, '[DELETED]', 'Deleted scrap workflow');
+          existedStatus = String(records[idx].Status || '').trim().toUpperCase();
+          records.splice(idx, 1);
+          pushHistory('scraplog', scrapId, 'ScrapLogID', 'ScrapLogID', scrapId, '[DELETED]', 'Deleted scrap workflow');
         }
         return { records };
       }, { maxRetry: 5, requireExisting: false });
@@ -1107,23 +1107,23 @@ app.post('/api/process-scrap', async (req, res) => {
       await updateCsvFileWithRetry(mainCsv, `Rollback Scrap State ${itemId}`, async (records) => {
         const row = records.find(r => String(r[idField] || '').trim() === String(itemId).trim());
         if (row) {
-            if (isMold) {
-                pushHistory('molds', itemId, 'MoldID', 'MoldDisposing', row.MoldDisposing, '', 'Rollback Scrap');
-                pushHistory('molds', itemId, 'MoldID', 'MoldDisposedDate', row.MoldDisposedDate, '', 'Rollback Scrap');
-                row.MoldDisposing = ''; row.MoldDisposedDate = '';
-                if (existedStatus === 'DISPOSED' || existedStatus === 'COMPLETED') {
-                   pushHistory('molds', itemId, 'MoldID', 'MoldUsageStatus', row.MoldUsageStatus, '', 'Rollback Scrap');
-                   row.MoldUsageStatus = '';
-                }
-            } else {
-                if (existedStatus === 'DISPOSED' || existedStatus === 'COMPLETED') {
-                   pushHistory('cutters', itemId, 'CutterID', 'UsageStatus', row.UsageStatus, '', 'Rollback Scrap');
-                   row.UsageStatus = '';
-                }
+          if (isMold) {
+            pushHistory('molds', itemId, 'MoldID', 'MoldDisposing', row.MoldDisposing, '', 'Rollback Scrap');
+            pushHistory('molds', itemId, 'MoldID', 'MoldDisposedDate', row.MoldDisposedDate, '', 'Rollback Scrap');
+            row.MoldDisposing = ''; row.MoldDisposedDate = '';
+            if (existedStatus === 'DISPOSED' || existedStatus === 'COMPLETED') {
+              pushHistory('molds', itemId, 'MoldID', 'MoldUsageStatus', row.MoldUsageStatus, '', 'Rollback Scrap');
+              row.MoldUsageStatus = '';
             }
+          } else {
+            if (existedStatus === 'DISPOSED' || existedStatus === 'COMPLETED') {
+              pushHistory('cutters', itemId, 'CutterID', 'UsageStatus', row.UsageStatus, '', 'Rollback Scrap');
+              row.UsageStatus = '';
+            }
+          }
         }
         return { records };
-       }, { maxRetry: 5, requireExisting: false });
+      }, { maxRetry: 5, requireExisting: false });
 
     } else {
       // Upsert mode
@@ -1136,7 +1136,7 @@ app.post('/api/process-scrap', async (req, res) => {
         const idx = records.findIndex(r => String(r.ScrapLogID || '').trim() === scrapId);
         if (idx >= 0) {
           expectedHeaders.forEach(k => {
-             k !== 'ScrapLogID' && pushHistory('scraplog', scrapId, 'ScrapLogID', k, records[idx][k], normalizedEntry[k], 'Edit scrap log');
+            k !== 'ScrapLogID' && pushHistory('scraplog', scrapId, 'ScrapLogID', k, records[idx][k], normalizedEntry[k], 'Edit scrap log');
           });
           records[idx] = Object.assign({}, records[idx], normalizedEntry);
         } else {
@@ -1151,46 +1151,46 @@ app.post('/api/process-scrap', async (req, res) => {
       await updateCsvFileWithRetry(mainCsv, `Sync Scrap State for ${itemId}`, async (records) => {
         const row = records.find(r => String(r[idField] || '').trim() === String(itemId).trim());
         if (row) {
-           if (isMold) {
-               if (pStatus === 'REQUESTED' || pStatus === 'SCHEDULED') {
-                   if (row.MoldDisposing !== '廃棄予定') {
-                       pushHistory('molds', itemId, 'MoldID', 'MoldDisposing', row.MoldDisposing, '廃棄予定', 'Set status to Planned (廃棄予定)');
-                       row.MoldDisposing = '廃棄予定';
-                   }
-               }
-               else if (pStatus === 'DISPOSED' || pStatus === 'COMPLETED') {
-                   if (row.MoldDisposing !== '廃棄済') {
-                       pushHistory('molds', itemId, 'MoldID', 'MoldDisposing', row.MoldDisposing, '廃棄済', 'Set status to Disposed (廃棄済)');
-                       row.MoldDisposing = '廃棄済';
-                   }
-                   if (row.MoldUsageStatus !== 'DISPOSED') {
-                       pushHistory('molds', itemId, 'MoldID', 'MoldUsageStatus', row.MoldUsageStatus, 'DISPOSED', 'Scrapped');
-                       row.MoldUsageStatus = 'DISPOSED';
-                   }
-                   if (payload.ScrappedDate && row.MoldDisposedDate !== payload.ScrappedDate) {
-                       pushHistory('molds', itemId, 'MoldID', 'MoldDisposedDate', row.MoldDisposedDate, payload.ScrappedDate, 'Record Scrap Date');
-                       row.MoldDisposedDate = payload.ScrappedDate;
-                   }
-               }
-           } else {
-               // Cutter logic
-               if (pStatus === 'DISPOSED' || pStatus === 'COMPLETED') {
-                   if (row.UsageStatus !== 'DISPOSED') {
-                       pushHistory('cutters', itemId, 'CutterID', 'UsageStatus', row.UsageStatus, 'DISPOSED', 'Scrapped');
-                       row.UsageStatus = 'DISPOSED';
-                   }
-               }
-           }
+          if (isMold) {
+            if (pStatus === 'REQUESTED' || pStatus === 'SCHEDULED') {
+              if (row.MoldDisposing !== '廃棄予定') {
+                pushHistory('molds', itemId, 'MoldID', 'MoldDisposing', row.MoldDisposing, '廃棄予定', 'Set status to Planned (廃棄予定)');
+                row.MoldDisposing = '廃棄予定';
+              }
+            }
+            else if (pStatus === 'DISPOSED' || pStatus === 'COMPLETED') {
+              if (row.MoldDisposing !== '廃棄済') {
+                pushHistory('molds', itemId, 'MoldID', 'MoldDisposing', row.MoldDisposing, '廃棄済', 'Set status to Disposed (廃棄済)');
+                row.MoldDisposing = '廃棄済';
+              }
+              if (row.MoldUsageStatus !== 'DISPOSED') {
+                pushHistory('molds', itemId, 'MoldID', 'MoldUsageStatus', row.MoldUsageStatus, 'DISPOSED', 'Scrapped');
+                row.MoldUsageStatus = 'DISPOSED';
+              }
+              if (payload.ScrappedDate && row.MoldDisposedDate !== payload.ScrappedDate) {
+                pushHistory('molds', itemId, 'MoldID', 'MoldDisposedDate', row.MoldDisposedDate, payload.ScrappedDate, 'Record Scrap Date');
+                row.MoldDisposedDate = payload.ScrappedDate;
+              }
+            }
+          } else {
+            // Cutter logic
+            if (pStatus === 'DISPOSED' || pStatus === 'COMPLETED') {
+              if (row.UsageStatus !== 'DISPOSED') {
+                pushHistory('cutters', itemId, 'CutterID', 'UsageStatus', row.UsageStatus, 'DISPOSED', 'Scrapped');
+                row.UsageStatus = 'DISPOSED';
+              }
+            }
+          }
         }
         return { records };
-       }, { maxRetry: 5, requireExisting: false });
+      }, { maxRetry: 5, requireExisting: false });
     }
 
     if (historyLogsToInsert.length > 0) {
-        await updateCsvFileWithRetry('datachangehistory.csv', `Log Scrap modifications for ${itemId}`, async (logs) => {
-            historyLogsToInsert.reverse().forEach(h => logs.unshift(h));
-            return { records: logs };
-        }, { maxRetry: 4, requireExisting: false });
+      await updateCsvFileWithRetry('datachangehistory.csv', `Log Scrap modifications for ${itemId}`, async (logs) => {
+        historyLogsToInsert.reverse().forEach(h => logs.unshift(h));
+        return { records: logs };
+      }, { maxRetry: 4, requireExisting: false });
     }
 
     res.json({ success: true, message: action === 'delete' ? 'Scrap workflow deleted' : 'Scrap processed correctly' });
@@ -1369,7 +1369,7 @@ app.post('/api/add-shiplog', async (req, res) => {
   console.log('[SERVER] add-shiplog called');
   try {
     const { MoldID, CutterID, ToCompanyID, EmployeeID, ShipNotes, CustomerID, ItemTypeID, ShipItemName, ShipItemType, FromCompany, ToCompany, FrameID, OtherEquipID, WaterBaseID, handler, ShipDate } = req.body || {};
-    
+
     if (!MoldID && !CutterID) return res.status(400).json({ success: false, message: 'MoldID or CutterID required' });
     if (!ToCompanyID) return res.status(400).json({ success: false, message: 'ToCompanyID required' });
 
@@ -1544,62 +1544,62 @@ app.post('/api/add-shiplog', async (req, res) => {
     // 8. Generate IN / OUT log if transitioning between YSD and Out
     const destToCompanyID = String(ToCompanyID).trim();
     if ((oldKeeper === ysdId && destToCompanyID !== ysdId) || (oldKeeper !== ysdId && destToCompanyID === ysdId)) {
-        const generatedStatus = (oldKeeper === ysdId && destToCompanyID !== ysdId) ? 'OUT' : 'IN';
-        const stLogId = genId('WEB_SL_');
-        const stEntry = {
-          StatusLogID: stLogId,
-          MoldID: MoldID || '',
-          CutterID: CutterID || '',
-          ItemType: dchItemType,
-          Status: generatedStatus,
-          Timestamp: ShipDate || dtNow,
-          EmployeeID: EmployeeID || '',
-          DestinationID: destToCompanyID,
-          Notes: ShipNotes || 'Auto-generated from Shipment',
-          AuditDate: '', AuditType: '', SessionID: '', SessionName: '', SessionMode: ''
-        };
+      const generatedStatus = (oldKeeper === ysdId && destToCompanyID !== ysdId) ? 'OUT' : 'IN';
+      const stLogId = genId('WEB_SL_');
+      const stEntry = {
+        StatusLogID: stLogId,
+        MoldID: MoldID || '',
+        CutterID: CutterID || '',
+        ItemType: dchItemType,
+        Status: generatedStatus,
+        Timestamp: ShipDate || dtNow,
+        EmployeeID: EmployeeID || '',
+        DestinationID: destToCompanyID,
+        Notes: ShipNotes || 'Auto-generated from Shipment',
+        AuditDate: '', AuditType: '', SessionID: '', SessionName: '', SessionMode: ''
+      };
 
-        try {
-          await updateCsvFileDynamicWithRetry('statuslogs.csv', `Add statuslog ${stLogId} from shiplog`,
-            async (rSt, hSt) => {
-              const newRec = { ...stEntry };
-              hSt.forEach(h => { if (newRec[h] === undefined) newRec[h] = ''; });
-              if (hSt.includes('UpdatedAt')) newRec.UpdatedAt = getJSTTimestamp();
-              if (hSt.includes('UpdatedBy')) newRec.UpdatedBy = String(EmployeeID || '');
-              rSt.unshift(newRec);
-              return { records: rSt };
-            }, { maxRetry: 4, requireExisting: true });
+      try {
+        await updateCsvFileDynamicWithRetry('statuslogs.csv', `Add statuslog ${stLogId} from shiplog`,
+          async (rSt, hSt) => {
+            const newRec = { ...stEntry };
+            hSt.forEach(h => { if (newRec[h] === undefined) newRec[h] = ''; });
+            if (hSt.includes('UpdatedAt')) newRec.UpdatedAt = getJSTTimestamp();
+            if (hSt.includes('UpdatedBy')) newRec.UpdatedBy = String(EmployeeID || '');
+            rSt.unshift(newRec);
+            return { records: rSt };
+          }, { maxRetry: 4, requireExisting: true });
 
-          // 9. DataChangeHistory for statuslogs.csv
-          await updateCsvFileDynamicWithRetry('datachangehistory.csv', `Add history for statuslog ${stLogId}`,
-            async (r2, h2) => {
-              const newDch = {
-                DataChangeID: genId('DCH'),
-                TableName: 'statuslogs.csv',
-                RecordID: stLogId,
-                RecordIDField: 'StatusLogID',
-                FieldName: 'Status',
-                OldValue: '',
-                NewValue: generatedStatus,
-                ChangedAt: ShipDate || dtNow,
-                ChangedBy: String(EmployeeID || ''),
-                BaseValueAtEdit: '',
-                BaseCommitID: '',
-                BaseCommitAt: '',
-                ChangeSource: 'api/add-shiplog',
-                ChangeNote: 'Auto-generated status',
-                IsConflict: 'FALSE',
-                ResolvedValue: '',
-                ResolvedAt: '',
-                ResolvedBy: ''
-              };
-              h2.forEach(h => { if (newDch[h] === undefined) newDch[h] = ''; });
-              r2.unshift(newDch);
-              return { records: r2 };
-            }, { maxRetry: 4, requireExisting: true });
-        } catch(ee) {
-           console.error('[SERVER] Failed generating auto StatusLog:', ee);
-        }
+        // 9. DataChangeHistory for statuslogs.csv
+        await updateCsvFileDynamicWithRetry('datachangehistory.csv', `Add history for statuslog ${stLogId}`,
+          async (r2, h2) => {
+            const newDch = {
+              DataChangeID: genId('DCH'),
+              TableName: 'statuslogs.csv',
+              RecordID: stLogId,
+              RecordIDField: 'StatusLogID',
+              FieldName: 'Status',
+              OldValue: '',
+              NewValue: generatedStatus,
+              ChangedAt: ShipDate || dtNow,
+              ChangedBy: String(EmployeeID || ''),
+              BaseValueAtEdit: '',
+              BaseCommitID: '',
+              BaseCommitAt: '',
+              ChangeSource: 'api/add-shiplog',
+              ChangeNote: 'Auto-generated status',
+              IsConflict: 'FALSE',
+              ResolvedValue: '',
+              ResolvedAt: '',
+              ResolvedBy: ''
+            };
+            h2.forEach(h => { if (newDch[h] === undefined) newDch[h] = ''; });
+            r2.unshift(newDch);
+            return { records: r2 };
+          }, { maxRetry: 4, requireExisting: true });
+      } catch (ee) {
+        console.error('[SERVER] Failed generating auto StatusLog:', ee);
+      }
     }
 
     res.json({ success: true, message: 'Shipment recorded successfully', ShipID: newId, FromCompanyID: oldKeeper });
@@ -1700,7 +1700,7 @@ app.post('/api/checklog', async (req, res) => {
         const dtNow = Timestamp || new Date().toISOString();
         try {
           await updateCsvFileDynamicWithRetry(
-           'datachangehistory.csv',
+            'datachangehistory.csv',
             `Update history for ${dchId} from api/checklog`,
             async (r2, h2) => {
               const newDch = {

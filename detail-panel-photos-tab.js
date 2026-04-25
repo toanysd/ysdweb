@@ -1,3 +1,4 @@
+// v9.0.2
 /* detail-panel-photos-tab-v8.4.3-1.js
    Detail Panel – Photos Tab Module (MoldCutterSearch)
 

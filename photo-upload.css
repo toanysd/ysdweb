@@ -1,3 +1,4 @@
+/* v9.0.2-1 */
 /* ============================================================
    PHOTO UPLOAD v8.4.3-9 (NEW - CLEAN CSS)
    - Viết mới hoàn toàn, KHÔNG tham khảo CSS cũ
@@ -247,7 +248,7 @@
   gap: 10px;
 
   padding: 10px 12px;
-  background: var(--pu-surface);
+  background: var(--pu-surface-2);
 
   border-bottom: 1px solid var(--pu-border);
   cursor: pointer;

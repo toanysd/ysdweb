@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
    scrap-wizard-module.js
    Module: Hủy Khuôn (Scrap) bằng UI Phân Rẽ Hành Động (Smart Grid Action-Based)

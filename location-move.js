@@ -1,3 +1,4 @@
+// v9.0.2
 /* location-move-v8.5.2-1.js */
 (function (global) {
   'use strict';

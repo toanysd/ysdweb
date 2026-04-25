@@ -1,3 +1,4 @@
+// v9.0.2
 (function (global) {
 
   'use strict';
@@ -65,7 +66,11 @@
 
   function buildStoragePath(opts) {
     var now = opts.now || new Date();
-    var base = (opts.devicetype === 'cutter') ? 'cutters' : (opts.devicetype === 'mold' ? 'molds' : 'devices');
+    var base = 'devices';
+    if (opts.devicetype === 'cutter') base = 'cutters';
+    else if (opts.devicetype === 'mold') base = 'molds';
+    else if (opts.devicetype === 'tray') base = 'trays';
+    else if (opts.devicetype === 'rack' || opts.devicetype === 'racklayer') base = 'racks';
     var safeId = (opts.deviceid || 'unknown').toString().replace(/-/g, '_');
     var y = now.getFullYear();
     var m = String(now.getMonth() + 1).padStart(2, '0');

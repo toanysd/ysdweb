@@ -1,3 +1,4 @@
+// v9.0.2-2
 /* ============================================================================
    quick-update-module-v8.5.3-4.js
    Module cập nhật nhanh (Wizard Flow) - Version 4
@@ -6,7 +7,7 @@
    - UI: Bổ sung nút Hủy bỏ vào tất cả các bước.
    ============================================================================ */
 
-(function(global) {
+(function (global) {
     'use strict';
 
     var VERSION = 'v8.5.3-4';
@@ -17,7 +18,7 @@
         if (!p) return '';
         if (/^https?:\/\//i.test(p)) return p;
         var normalized = p.charAt(0) === '/' ? p : ('/' + p);
-        
+
         // MCS_API_BASE_URL là biến toàn cục thường dùng trong hệ thống
         var base = global && global.MCS_API_BASE_URL;
         if (base && String(base).trim() && String(base).trim() !== 'undefined' && String(base).trim() !== 'null') {
@@ -50,18 +51,18 @@
         LIFECYCLE: {
             jp: '運用状況 cập nhật', vi: 'Vận hành & Hủy trả', icon: 'fas fa-truck-loading', color: '#10b981',
             fields: [
-                { 
-                    key: 'MoldReturning', labelJp: '返却状況', labelVi: 'Trạng thái Trả khuôn', 
-                    type: 'select', table: 'molds', 
+                {
+                    key: 'MoldReturning', labelJp: '返却状況', labelVi: 'Trạng thái Trả khuôn',
+                    type: 'select', table: 'molds',
                     options: [
                         { val: '', label: '-- Chọn / 選択 --' },
                         { val: '返却予定', label: '返却予定 (Scheduled)' },
                         { val: '返却済', label: '返却済 (Returned)' }
-                    ] 
+                    ]
                 },
                 { key: 'MoldReturnedDate', labelJp: '返却日', labelVi: 'Ngày trả khuôn', type: 'date', table: 'molds' },
-                { 
-                    key: 'MoldDisposing', labelJp: '廃棄状況', labelVi: 'Trạng thái Hủy khuôn', 
+                {
+                    key: 'MoldDisposing', labelJp: '廃棄状況', labelVi: 'Trạng thái Hủy khuôn',
                     type: 'select', table: 'molds',
                     options: [
                         { val: '', label: '-- Chọn / 選択 --' },
@@ -71,7 +72,7 @@
                 },
                 { key: 'MoldDisposedDate', labelJp: '廃棄日', labelVi: 'Ngày Hủy khuôn', type: 'date', table: 'molds' }
             ],
-            hasShipping: true 
+            hasShipping: true
         }
     };
 
@@ -81,7 +82,7 @@
         currentMode: null,
         currentStep: 1,
         maxSteps: 3,
-        
+
         wizardState: {
             employeeId: '',
             fields: {},
@@ -95,7 +96,7 @@
         },
 
 
-        numpadPress: function(key) {
+        numpadPress: function (key) {
             var targetKey = this.wizardState.weightTarget;
             if (!targetKey) return;
             var val = String(this.wizardState.fields[targetKey] || '');
@@ -114,11 +115,12 @@
             if (screen) screen.innerText = val || '0';
         },
 
-        initDOM: function() {
+        initDOM: function () {
             if (document.getElementById('qu-backdrop')) return;
             var backdrop = document.createElement('div');
             backdrop.id = 'qu-backdrop';
             backdrop.className = 'qu-backdrop';
+            backdrop.style.zIndex = '10500';
             var modal = document.createElement('div');
             modal.id = 'qu-modal';
             modal.className = 'qu-modal';
@@ -127,9 +129,10 @@
             backdrop.addEventListener('click', this.close.bind(this));
         },
 
-        openModal: function(modeKey, item) {
+        openModal: function (modeKey, item, options) {
             if (!MODES[modeKey]) return;
             this.initDOM();
+
             this.currentItem = item;
             this.currentMode = modeKey;
             this.currentStep = 1;
@@ -144,8 +147,15 @@
                     from: 'YSD',
                     to: '',
                     notes: ''
-                }
+                },
+                options: options || {}
             };
+
+            if (modeKey === 'WEIGHT') {
+                if (item && item.TrayID && !item.MoldID && !item.CutterID) {
+                    this.wizardState.weightTarget = 'TrayWeight';
+                }
+            }
 
             var m = MODES[modeKey];
             for (var i = 0; i < m.fields.length; i++) {
@@ -170,21 +180,25 @@
             this.isOpen = true;
         },
 
-        close: function() {
+        close: function () {
             var bd = document.getElementById('qu-backdrop');
             var md = document.getElementById('qu-modal');
             if (bd) bd.classList.remove('is-visible');
             if (md) md.classList.remove('is-visible');
             this.isOpen = false;
+            /* ── Gọi callback onClose nếu có (để khôi phục Photo Upload overlay) ── */
+            if (this.wizardState && this.wizardState.options && typeof this.wizardState.options.onClose === 'function') {
+                this.wizardState.options.onClose();
+            }
         },
 
-        render: function() {
+        render: function () {
             var m = MODES[this.currentMode];
             var md = document.getElementById('qu-modal');
             var step = this.currentStep;
 
             var stepsHtml = '';
-            for(var s=1; s<=this.maxSteps; s++) {
+            for (var s = 1; s <= this.maxSteps; s++) {
                 var cls = s === step ? 'is-active' : (s < step ? 'is-done' : '');
                 var icon = s < step ? '<i class="fas fa-check"></i>' : s;
                 stepsHtml += `<div class="qu-progress-step ${cls}">${icon}</div>`;
@@ -211,11 +225,28 @@
             this.renderFooter();
         },
 
-        renderStepContent: function() {
+        renderStepContent: function () {
             var container = document.getElementById('qu-step-content');
             var step = this.currentStep;
 
-            if (step === 1) { 
+            if (step === 1 && this.currentMode === 'WEIGHT') {
+                container.innerHTML = `
+                    <div class="qu-label"><span class="qu-label-jp">対象を選択してください</span><span class="qu-label-vi">Chọn đối tượng thiết bị cập nhật Khối lượng</span></div>
+                    <div class="qu-selection-grid" style="grid-template-columns: 1fr; gap:16px;">
+                        <div class="qu-selection-item" style="padding:24px; text-align:center" onclick="QuickUpdateModule.wizardState.weightTarget = 'MoldWeightModified'; QuickUpdateModule.nextStep()">
+                            <i class="fas fa-cube" style="font-size:32px; color:#f59e0b; margin-bottom:12px; display:block"></i>
+                            <span class="qu-title-jp" style="font-size:15px; font-weight:700">金型重量</span><br/>
+                            <span class="qu-sel-name" style="font-size:16px; color:#475569">Khối lượng Khuôn</span>
+                        </div>
+                        <div class="qu-selection-item" style="padding:24px; text-align:center" onclick="QuickUpdateModule.wizardState.weightTarget = 'TrayWeight'; QuickUpdateModule.nextStep()">
+                            <i class="fas fa-box" style="font-size:32px; color:#10b981; margin-bottom:12px; display:block"></i>
+                            <span class="qu-title-jp" style="font-size:15px; font-weight:700">トレイ重量</span><br/>
+                            <span class="qu-sel-name" style="font-size:16px; color:#475569">Khối lượng Khay</span>
+                        </div>
+                    </div>
+                `;
+            }
+            else if ((step === 1 && this.currentMode !== 'WEIGHT') || (step === 2 && this.currentMode === 'WEIGHT')) {
                 var emps = (global.DataManager && global.DataManager.data ? global.DataManager.data.employees : []) || [];
                 var gridHtml = emps.slice(0, 12).map(e => {
                     var sel = this.wizardState.employeeId === e.EmployeeID ? 'is-selected' : '';
@@ -236,29 +267,12 @@
                         this.nextStep();
                     };
                 });
-            } 
-            else if (step === 2 && this.currentMode === 'WEIGHT') {
-                container.innerHTML = `
-                    <div class="qu-label"><span class="qu-label-jp">対象を選択してください</span><span class="qu-label-vi">Chọn đối tượng thiết bị cập nhật Khối lượng</span></div>
-                    <div class="qu-selection-grid" style="grid-template-columns: 1fr; gap:16px;">
-                        <div class="qu-selection-item" style="padding:24px; text-align:center" onclick="QuickUpdateModule.wizardState.weightTarget = 'MoldWeightModified'; QuickUpdateModule.nextStep()">
-                            <i class="fas fa-cube" style="font-size:32px; color:#f59e0b; margin-bottom:12px; display:block"></i>
-                            <span class="qu-title-jp" style="font-size:15px; font-weight:700">金型重量</span><br/>
-                            <span class="qu-sel-name" style="font-size:16px; color:#475569">Khối lượng Khuôn</span>
-                        </div>
-                        <div class="qu-selection-item" style="padding:24px; text-align:center" onclick="QuickUpdateModule.wizardState.weightTarget = 'TrayWeight'; QuickUpdateModule.nextStep()">
-                            <i class="fas fa-box" style="font-size:32px; color:#10b981; margin-bottom:12px; display:block"></i>
-                            <span class="qu-title-jp" style="font-size:15px; font-weight:700">トレイ重量</span><br/>
-                            <span class="qu-sel-name" style="font-size:16px; color:#475569">Khối lượng Khay</span>
-                        </div>
-                    </div>
-                `;
             }
             else if (step === 3 && this.currentMode === 'WEIGHT') {
                 var targetKey = this.wizardState.weightTarget;
                 var val = this.wizardState.fields[targetKey] || '';
                 var targetName = targetKey === 'MoldWeightModified' ? '金型重量 / Khối lượng Khuôn' : 'トレイ重量 / Khối lượng Khay';
-                
+
                 if (!document.getElementById('qu-numpad-style')) {
                     var s = document.createElement('style');
                     s.id = 'qu-numpad-style';
@@ -295,7 +309,7 @@
                     </div>
                 `;
             }
-            else if (step === 2) { 
+            else if (step === 2) {
                 var m = MODES[this.currentMode];
                 var fieldsHtml = m.fields.map(f => {
                     var val = this.wizardState.fields[f.key] || '';
@@ -320,7 +334,7 @@
                     el.onchange = () => { this.wizardState.fields[el.dataset.key] = el.value; };
                 });
             }
-            else if (step === 3 && MODES[this.currentMode].hasShipping) { 
+            else if (step === 3 && MODES[this.currentMode].hasShipping) {
                 container.innerHTML = `
                     <div class="qu-field">
                         <label style="display:flex; align-items:center; gap:10px; font-weight:bold; cursor:pointer">
@@ -353,7 +367,7 @@
                     if (el) el.onchange = () => { this.wizardState.shipping[k] = el.value; };
                 });
             }
-            else { 
+            else {
                 var m = MODES[this.currentMode];
                 var summary = m.fields.map(f => {
                     var val = this.wizardState.fields[f.key];
@@ -381,7 +395,7 @@
             }
         },
 
-        renderFooter: function() {
+        renderFooter: function () {
             var footer = document.getElementById('qu-footer-content');
             var step = this.currentStep;
 
@@ -393,26 +407,40 @@
                     <button class="qu-btn qu-btn-back" onclick="QuickUpdateModule.close()"><i class="fas fa-times"></i> Đóng / 閉じる</button>
                 `;
             } else {
-                var nextBtn = step === this.maxSteps 
+                var nextBtn = step === this.maxSteps
                     ? `<button class="qu-btn qu-btn-save" id="qu-final-save"><i class="fas fa-cloud-upload-alt"></i> Cập nhật / 保存</button>`
                     : `<button class="qu-btn qu-btn-next" onclick="QuickUpdateModule.nextStep()">Tiếp theo / 次へ <i class="fas fa-arrow-right"></i></button>`;
-                
+
                 footer.innerHTML = `
                     ${cancelBtn}
                     <button class="qu-btn qu-btn-back" onclick="QuickUpdateModule.prevStep()"><i class="fas fa-arrow-left"></i> Quay lại</button>
                     ${nextBtn}
                 `;
-                
+
                 if (document.getElementById('qu-final-save')) {
                     document.getElementById('qu-final-save').onclick = this.handleFinalSave.bind(this);
                 }
             }
         },
 
-        nextStep: function() { if (this.currentStep < this.maxSteps) { this.currentStep++; this.render(); } },
-        prevStep: function() { if (this.currentStep > 1) { this.currentStep--; this.render(); } },
+        nextStep: function () {
+            if (this.currentStep === 1 && this.currentMode === 'WEIGHT' && this.currentItem && this.currentItem.TrayID && !this.currentItem.MoldID && !this.currentItem.CutterID) {
+                this.currentStep = 3;
+            } else if (this.currentStep < this.maxSteps) {
+                this.currentStep++;
+            }
+            this.render();
+        },
+        prevStep: function () {
+            if (this.currentStep === 3 && this.currentMode === 'WEIGHT' && this.currentItem && this.currentItem.TrayID && !this.currentItem.MoldID && !this.currentItem.CutterID) {
+                this.currentStep = 1;
+            } else if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+            this.render();
+        },
 
-        handleFinalSave: async function() {
+        handleFinalSave: async function () {
             var btn = document.getElementById('qu-final-save');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
@@ -446,7 +474,7 @@
                             })
                         });
                         if (!resWeb.ok) {
-                            var errData = await resWeb.json().catch(function(){return {};});
+                            var errData = await resWeb.json().catch(function () { return {}; });
                             throw new Error('Lỗi cập nhật ' + tInfo.filename + ': ' + (errData.message || resWeb.status));
                         }
 
@@ -478,7 +506,7 @@
                             })
                         });
                         if (!resHistory.ok) {
-                            var errLog = await resHistory.json().catch(function(){return {};});
+                            var errLog = await resHistory.json().catch(function () { return {}; });
                             throw new Error('Lỗi ghi Log ' + DCH_FILE + ': ' + (errLog.message || resHistory.status));
                         }
                     }
@@ -507,9 +535,13 @@
                 }
 
                 this.notify('Đã lưu thành công!', 'success');
-                
+
                 if (global.DataManager && typeof global.DataManager.loadAllData === 'function') {
                     await global.DataManager.loadAllData();
+                }
+
+                if (typeof this.wizardState.options.onSuccess === 'function') {
+                    this.wizardState.options.onSuccess(this.wizardState.fields);
                 }
 
                 if (global.DetailPanel && typeof global.DetailPanel.open === 'function') {
@@ -518,7 +550,7 @@
                     var idValue = this.currentItem && this.currentItem[idField];
                     var table = type === 'cutter' ? 'cutters' : 'molds';
                     var refreshedItem = this.currentItem;
-                    
+
                     if (idValue && global.DataManager && global.DataManager.data && global.DataManager.data[table]) {
                         var list = global.DataManager.data[table];
                         for (var i = 0; i < list.length; i++) {
@@ -538,23 +570,23 @@
             }
         },
 
-        resolveRecordKey: function(table, item) {
+        resolveRecordKey: function (table, item) {
             if (table === 'molds') return { idValue: item.MoldID || item.CutterID, idField: item.MoldID ? 'MoldID' : 'CutterID', actualTable: item.MoldID ? 'molds' : 'cutters', filename: item.MoldID ? 'molds.csv' : 'cutters.csv' };
             if (table === 'molddesign') return { idValue: item.MoldDesignID, idField: 'MoldDesignID', actualTable: 'molddesign', filename: 'molddesign.csv' };
-            if (table === 'trays') return { idValue: item.TrayID || (item.designInfo && item.designInfo.TrayID), idField: 'TrayID', actualTable: 'trays', filename: 'tray.csv' };
+            if (table === 'trays') return { idValue: item.TrayID || (item.designInfo && item.designInfo.TrayID), idField: 'TrayID', actualTable: 'trays', filename: 'trays.csv' };
             return null;
         },
-        getTableData: function(actualTable, idField, idValue) {
+        getTableData: function (actualTable, idField, idValue) {
             var dm = global.DataManager && global.DataManager.data ? global.DataManager.data : {};
             var rows = dm[actualTable] || [];
             return rows.find(r => String(r[idField]).trim() === String(idValue).trim());
         },
-        getEmployeeName: function(id) {
+        getEmployeeName: function (id) {
             var emps = (global.DataManager && global.DataManager.data ? global.DataManager.data.employees : []) || [];
             var e = emps.find(x => x.EmployeeID === id);
             return e ? (e.EmployeeName || e.Name) : id;
         },
-        notify: function(msg, type) {
+        notify: function (msg, type) {
             if (global.NotificationModule) global.NotificationModule.show(msg, type); else alert(msg);
         }
     };

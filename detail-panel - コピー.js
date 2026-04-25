@@ -1,4 +1,4 @@
-// v9.1.5-3
+// v9.0.2
 /* ============================================================================
 
 
@@ -200,7 +200,6 @@ Created: 2026-02-04
 
 
         cutters: [],
-        trays: [],
 
 
 
@@ -3752,7 +3751,6 @@ Created: 2026-02-04
 
 
 
-      if (item && (item.TrayID || item.TrayCode || item.TrayName)) return 'tray';
       if (item && (item.CutterID || item.CutterNo || item.CutterName || item.CutterDesignCode)) return 'cutter';
 
 
@@ -4064,12 +4062,25 @@ Created: 2026-02-04
 
 
       let code = '---';
+
+
+
       if (this.currentItemType === 'cutter') {
+
+
+
         code = this.currentItem?.CutterNo || this.currentItem?.CutterID || '---';
-      } else if (this.currentItemType === 'tray') {
-        code = this.currentItem?.TrayCode || this.currentItem?.TrayID || '---';
+
+
+
       } else {
+
+
+
         code = this.currentItem?.MoldCode || this.currentItem?.MoldID || '---';
+
+
+
       }
 
 
@@ -6066,7 +6077,7 @@ Created: 2026-02-04
 
 
 
-              <div class="section-header color-slate"><i class="fas fa-history"></i><span>Lịch sử trạng thái thiết bị</span></div>
+              <div class="section-header"><i class="fas fa-history"></i><span>Lịch sử trạng thái thiết bị</span></div>
 
 
 
@@ -6126,7 +6137,7 @@ Created: 2026-02-04
 
 
 
-              <div class="section-header color-slate"><i class="fas fa-history"></i><span>Lịch sử trạng thái thiết bị</span></div>
+              <div class="section-header"><i class="fas fa-history"></i><span>Lịch sử trạng thái thiết bị</span></div>
 
 
 
@@ -7775,9 +7786,13 @@ Created: 2026-02-04
 
 
           if (t0 === 'cutter') {
+
+
+
             partialItem = { CutterNo: s, CutterCode: s, CutterID: s, ID: s };
-          } else if (t0 === 'tray') {
-            partialItem = { TrayCode: s, TrayID: s, ID: s };
+
+
+
           } else {
 
 
@@ -7846,17 +7861,6 @@ Created: 2026-02-04
 
 
 
-        }
-
-        if (t === 'tray') {
-          const id = this.normId(partialItem.TrayID || partialItem.ID || partialItem.id);
-          const code = this.normId(partialItem.TrayCode || partialItem.code || partialItem.Code);
-          const trays = Array.isArray(this.data?.trays) ? this.data.trays : [];
-          const found = trays.find(tr =>
-            (id && this.normId(tr?.TrayID || tr?.ID) === id) ||
-            (code && this.normId(tr?.TrayCode || tr?.Code) === code)
-          );
-          return found || partialItem;
         }
 
 
@@ -8770,19 +8774,29 @@ Created: 2026-02-04
 
 
       if (String(action).toLowerCase().trim() === 'move') {
-
         try {
-
           if (window.TransferLocModule && typeof window.TransferLocModule.openModal === 'function') {
-
             window.TransferLocModule.openModal('TRANSFER', this.currentItem);
-
             return;
-
           }
-
         } catch (e) { }
+      }
 
+      if (String(action).toLowerCase().trim() === 'opentray') {
+        try {
+          if (window.ViewManager) {
+            window.ViewManager.switchView('tray');
+            if (window.TrayManager && this.currentItem) {
+              var globalSearch = document.getElementById('searchInput');
+              if (globalSearch) {
+                globalSearch.value = this.currentItem.TrayID || this.currentItem.MoldID || this.currentItem.MoldCode || '';
+                globalSearch.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }
+            this.close();
+            return;
+          }
+        } catch (e) { }
       }
 
 
@@ -9536,12 +9550,6 @@ Created: 2026-02-04
 
 
                    </div>
-                   <div class="dp-d2-card">
-                      <div class="dp-d2-card-head color-slate"><i class="fas fa-history"></i> 履歴・レポート (Lịch sử & Báo cáo)</div>
-                      <div class="dp-d2-card-body" style="background:#f8fafc;">
-                         ${this.renderTrackingHistory(mold)}
-                      </div>
-                   </div>
 
 
 
@@ -9549,7 +9557,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-blue"><i class="fas fa-link"></i> 関連デバイス (Thiết bị liên kết)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-link"></i> 関連デバイス (Thiết bị liên kết)</div>
 
 
 
@@ -9589,7 +9597,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-teal"><i class="fas fa-map-marker-alt"></i> 保管・ステータス (Lưu trữ & Trạng thái)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-map-marker-alt"></i> 保管・ステータス (Lưu trữ & Trạng thái)</div>
 
 
 
@@ -9617,7 +9625,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-indigo"><i class="fas fa-clipboard-list"></i> 概要 (Tổng quan)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-clipboard-list"></i> 概要 (Tổng quan)</div>
 
 
 
@@ -9657,7 +9665,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-amber"><i class="fas fa-bolt"></i> 操作・リンク (Thao tác & Liên kết)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-bolt"></i> 操作・リンク (Thao tác & Liên kết)</div>
 
 
 
@@ -9677,7 +9685,67 @@ Created: 2026-02-04
 
 
 
-                   
+                   <div class="dp-d2-card">
+
+
+
+                      <div class="dp-d2-card-head"><i class="fas fa-history"></i> 履歴・レポート (Lịch sử & Báo cáo)</div>
+
+
+
+                      <div class="dp-d2-card-body" style="display:flex; flex-direction:column; gap: 12px;">
+
+
+
+                         ${this.renderDesktopQuickQueries(mold)}
+
+
+
+                         ${this.renderDesktopMiniSnapshots(mold)}
+
+
+
+                         <div>
+
+
+
+                           <div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase;">クイックアクセス (Truy cập nhanh)</div>
+
+
+
+                           <div class="dp-actions-grid">
+
+
+
+                             <button class="dp-action-btn" type="button" data-jump="design"><i class="fas fa-drafting-compass" style="color:#3b82f6;"></i><div style="display:flex;flex-direction:column;min-width:0;overflow:hidden"><span class="dp-action-label-ja">Design</span><span class="sub dp-action-label-vi">Thiết kế</span></div></button>
+
+
+
+                             <button class="dp-action-btn" type="button" data-jump="customers"><i class="fas fa-building" style="color:#8b5cf6;"></i><div style="display:flex;flex-direction:column;min-width:0;overflow:hidden"><span class="dp-action-label-ja">Customers</span><span class="sub dp-action-label-vi">Khách hàng</span></div></button>
+
+
+
+                             <button class="dp-action-btn" type="button" data-jump="product"><i class="fas fa-box" style="color:#f59e0b;"></i><div style="display:flex;flex-direction:column;min-width:0;overflow:hidden"><span class="dp-action-label-ja">Product</span><span class="sub dp-action-label-vi">Job</span></div></button>
+
+
+
+                             <button class="dp-action-btn" type="button" data-jump="storage"><i class="fas fa-warehouse" style="color:#10b981;"></i><div style="display:flex;flex-direction:column;min-width:0;overflow:hidden"><span class="dp-action-label-ja">Storage</span><span class="sub dp-action-label-vi">Vị trí</span></div></button>
+
+
+
+                             <button class="dp-action-btn" type="button" data-jump="transfer"><i class="fas fa-truck" style="color:#6366f1;"></i><div style="display:flex;flex-direction:column;min-width:0;overflow:hidden"><span class="dp-action-label-ja">Transfer</span><span class="sub dp-action-label-vi">Vận chuyển</span></div></button>
+
+
+
+                             <button class="dp-action-btn" type="button" data-jump="extended"><i class="fas fa-arrow-right" style="color:#475569;"></i><div style="display:flex;flex-direction:column;min-width:0;overflow:hidden"><span class="dp-action-label-ja">Open</span><span class="sub dp-action-label-vi">Mở rộng</span></div></button>
+
+
+
+                           </div>
+
+
+
+                         </div>
 
 
 
@@ -9769,7 +9837,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-blue"><i class="fas fa-link"></i> 関連デバイス (Thiết bị liên kết)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-link"></i> 関連デバイス (Thiết bị liên kết)</div>
 
 
 
@@ -9809,7 +9877,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-teal"><i class="fas fa-map-marker-alt"></i> 保管・ステータス (Lưu trữ & Trạng thái)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-map-marker-alt"></i> 保管・ステータス (Lưu trữ & Trạng thái)</div>
 
 
 
@@ -9837,7 +9905,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-indigo"><i class="fas fa-clipboard-list"></i> 概要 (Tổng quan)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-clipboard-list"></i> 概要 (Tổng quan)</div>
 
 
 
@@ -9877,7 +9945,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-amber"><i class="fas fa-bolt"></i> 操作・リンク (Thao tác & Liên kết)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-bolt"></i> 操作・リンク (Thao tác & Liên kết)</div>
 
 
 
@@ -9901,7 +9969,7 @@ Created: 2026-02-04
 
 
 
-                      <div class="dp-d2-card-head color-slate"><i class="fas fa-history"></i> 履歴・レポート (Lịch sử & Báo cáo)</div>
+                      <div class="dp-d2-card-head"><i class="fas fa-history"></i> 履歴・レポート (Lịch sử & Báo cáo)</div>
 
 
 
@@ -11141,7 +11209,7 @@ Created: 2026-02-04
 
 
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
 
 
@@ -11165,7 +11233,7 @@ Created: 2026-02-04
 
 
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
 
 
@@ -11193,7 +11261,7 @@ Created: 2026-02-04
 
 
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
 
 
@@ -11221,7 +11289,7 @@ Created: 2026-02-04
 
 
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
 
 
@@ -11249,7 +11317,7 @@ Created: 2026-02-04
 
 
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
 
 
@@ -11273,7 +11341,7 @@ Created: 2026-02-04
 
             <i class="fas fa-qrcode" style="color:#8b5cf6;"></i>
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
               <span class="dp-action-label-ja">QR</span>
 
@@ -11289,7 +11357,7 @@ Created: 2026-02-04
 
             <i class="fas fa-map-signs" style="color:#8b5cf6;"></i>
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
               <span class="dp-action-label-ja">移動・返却</span>
 
@@ -11305,7 +11373,7 @@ Created: 2026-02-04
 
             <i class="fas fa-weight-hanging" style="color:#f59e0b;"></i>
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
               <span class="dp-action-label-ja">重量</span>
 
@@ -11321,7 +11389,7 @@ Created: 2026-02-04
 
             <i class="fas fa-trash-alt" style="color:#ef4444;"></i>
 
-            <div class="dp-action-btn-texts">
+            <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:0; overflow:hidden;">
 
               <span class="dp-action-label-ja">廃棄</span>
 
@@ -11331,25 +11399,12 @@ Created: 2026-02-04
 
           </button>
 
-          </div>
+        </div>
 
-          <div style="margin-top: 16px;">
-            <div style="font-size:11.5px; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-               <i class="fas fa-location-arrow"></i> クイックアクセス (Truy cập nhanh)
-            </div>
-            <div class="dp-actions-grid">
-               <button class="dp-action-btn" type="button" data-jump="design"><i class="fas fa-drafting-compass" style="color:#0284c7;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">Design</span><span class="sub dp-action-label-vi">Thiết kế</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="customers"><i class="fas fa-building" style="color:#9333ea;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">Customers</span><span class="sub dp-action-label-vi">Khách hàng</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="product"><i class="fas fa-box" style="color:#ea580c;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">Product</span><span class="sub dp-action-label-vi">Job</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="storage"><i class="fas fa-warehouse" style="color:#059669;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">Storage</span><span class="sub dp-action-label-vi">Vị trí</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="transfer"><i class="fas fa-truck" style="color:#4f46e5;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">Transfer</span><span class="sub dp-action-label-vi">Vận chuyển</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="history"><i class="fas fa-history" style="color:#475569;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">履歴</span><span class="sub dp-action-label-vi">Lịch sử</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="teflon"><i class="fas fa-spray-can" style="color:#0d9488;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">Teflon</span><span class="sub dp-action-label-vi">Mạ Teflon</span></div></button>
-               <button class="dp-action-btn" type="button" data-jump="extended"><i class="fas fa-expand-arrows-alt" style="color:#db2777;"></i><div class="dp-action-btn-texts"><span class="dp-action-label-ja">拡張</span><span class="sub dp-action-label-vi">Mở rộng</span></div></button>
-            </div>
+      `;
 
-</div>
-`;
+
+
     }
 
 
@@ -11359,8 +11414,6 @@ Created: 2026-02-04
 
 
     renderDesktopQuickQueries(mold) {
-      return "";
-
 
 
 
@@ -12972,7 +13025,7 @@ Created: 2026-02-04
 
           <div class="modal-section dp-related-section">
 
-            <div class="section-header color-blue">
+            <div class="section-header color-indigo">
 
               <i class="fas fa-link"></i>
 
@@ -13112,7 +13165,7 @@ Created: 2026-02-04
 
 
 
-            <div class="section-header color-blue">
+            <div class="section-header color-indigo">
 
 
 
@@ -13220,251 +13273,7 @@ Created: 2026-02-04
 
 
 
-
-
-
-
-
-
-    renderTrackingHistory(mold) {
-      if (!mold) return '';
-
-      // --- NATIVE LOGIC FROM device-history-status.js ---
-      const getData = () => {
-        try { if (window.DataManager && window.DataManager.data) return window.DataManager.data; } catch (e) { }
-        try { if (window.ALLDATA) return window.ALLDATA; } catch (e) { }
-        return {};
-      };
-
-      const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
-      const toArray = (x) => Array.isArray(x) ? x : [];
-      const normId = (v) => (v === null || v === undefined) ? '' : String(v).trim();
-      const escapeHtml = (v) => {
-        if (v === null || v === undefined) return '';
-        return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#039;');
-      };
-      const safeText = (v, fallback) => {
-        var s = (v === null || v === undefined) ? '' : String(v).trim();
-        if (s) return escapeHtml(s);
-        var f = String(fallback || '-').trim();
-        return f ? escapeHtml(f) : '-';
-      };
-      const pick = (obj, keys) => {
-        try {
-          if (!obj) return null;
-          for (var i = 0; i < keys.length; i++) {
-            var k = keys[i];
-            if (!k || !(k in obj)) continue;
-            var v = obj[k];
-            if (v === null || v === undefined) continue;
-            if (String(v).trim()) return v;
-          }
-          return null;
-        } catch (e) { return null; }
-      };
-      const parseTimeAny = (v) => {
-        if (!v) return 0;
-        if (typeof v === 'number' && isFinite(v)) return v;
-        var s = String(v).trim();
-        if (!s) return 0;
-        var t = Date.parse(s);
-        if (!isNaN(t)) return t;
-        try {
-          var s2 = s.replace(/\//g, '-');
-          t = Date.parse(s2);
-          if (!isNaN(t)) return t;
-        } catch (e) { }
-        return 0;
-      };
-      const formatDateOnly = (v) => {
-        var t = parseTimeAny(v);
-        if (!t) return '---';
-        try {
-          var d = new Date(t);
-          var y = d.getFullYear();
-          var m = String(d.getMonth() + 1).padStart(2, '0');
-          var day = String(d.getDate()).padStart(2, '0');
-          return y + '-' + m + '-' + day;
-        } catch (e) { return '---'; }
-      };
-
-      const isRowForItemByIds = (row, item) => {
-        try {
-          if (!row || !item) return false;
-          var mid = normId(item.MoldID || item.MoldCode);
-          var rid = normId(row.MoldID || row.MoldId || row.MOLDID || row.MoldCode);
-          if (!mid || !rid) return false;
-          return rid === mid;
-        } catch (e) { return false; }
-      };
-
-      const findCompanyName = (data, companyId) => {
-        var v = normId(companyId);
-        if (!v) return '';
-        var list = toArray(data && data.companies);
-        for (var i = 0; i < list.length; i++) {
-          var c = list[i];
-          var cid = normId(c.CompanyID || c.ID || c.id);
-          if (cid && cid === v) return normId(c.CompanyShortName || c.CompanyName || cid);
-        }
-        return v;
-      };
-
-      const data = getData();
-
-      // 1. TEFLON
-      let teflonStatus = '履歴なし (Trống)';
-      let teflonDate = '---';
-      let teflonBadge = '';
-      let hasTeflon = false;
-
-      var tLogs = toArray(data && data.teflonlog);
-      var validTLogs = [];
-      for (var i = 0; i < tLogs.length; i++) {
-        var r = tLogs[i];
-        if (isRowForItemByIds(r, mold)) {
-          r.timeMs = parseTimeAny(pick(r, ['DateEntry', 'UpdatedDate', 'CreatedDate', 'RequestedDate', 'SentDate', 'ReceivedDate']));
-          validTLogs.push(r);
-        }
-      }
-      if (validTLogs.length > 0) {
-        validTLogs.sort((a, b) => (b.timeMs || 0) - (a.timeMs || 0));
-        var tRow = validTLogs[0];
-        hasTeflon = true;
-        teflonStatus = normId(tRow.TeflonStatus || tRow.Status);
-        teflonDate = formatDateOnly(pick(tRow, ['DateEntry', 'UpdatedDate', 'CreatedDate', 'RequestedDate', 'SentDate', 'ReceivedDate']));
-
-        if (teflonStatus.indexOf('済') >= 0 || teflonStatus.indexOf('受領') >= 0 || /completed|coated/i.test(teflonStatus)) {
-          teflonStatus = '完了 (Hoàn tất)';
-          teflonBadge = `background: #dcfce7; color: #047857; border: 1px solid rgba(0,0,0,0.05);`; // Green
-        } else if (teflonStatus.indexOf('中') >= 0 || teflonStatus.indexOf('送付') >= 0 || /sent|processing/i.test(teflonStatus)) {
-          teflonStatus = '加工中 (Đang mạ)';
-          teflonBadge = `background: #ccfbf1; color: #0f766e; border: 1px solid rgba(0,0,0,0.05);`; // Teal/Cyan
-        } else if (teflonStatus.indexOf('依頼') >= 0 || teflonStatus.indexOf('待') >= 0 || teflonStatus.indexOf('承') >= 0 || /requested|pending|approved/i.test(teflonStatus)) {
-          teflonStatus = '処理依頼 (Yêu cầu Mạ)';
-          teflonBadge = `background: #ffedd5; color: #c2410c; border: 1px solid rgba(0,0,0,0.05);`; // Orange
-        } else {
-          teflonBadge = `background: #f1f5f9; color: #475569; border: 1px solid rgba(0,0,0,0.05);`; // Gray
-        }
-      }
-
-      // 2. SHIPPING
-      let transStatus = '履歴なし (Trống)';
-      let transDate = '---';
-
-      var sLogs = toArray(data && data.shiplog).concat(toArray(data && data.webshiplog));
-      var validSLogs = [];
-      for (var j = 0; j < sLogs.length; j++) {
-        var sr = sLogs[j];
-        if (isRowForItemByIds(sr, mold)) {
-          sr.timeMs = parseTimeAny(pick(sr, ['ShipDate', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
-          validSLogs.push(sr);
-        }
-      }
-      if (validSLogs.length > 0) {
-        validSLogs.sort((a, b) => (b.timeMs || 0) - (a.timeMs || 0));
-        var sRow = validSLogs[0];
-
-        var fromVal = normId(sRow.FromCompanyID) || normId(sRow.FromCompany);
-        var toVal = normId(sRow.ToCompanyID) || normId(sRow.ToCompany);
-        var fCo = findCompanyName(data, fromVal) || '-';
-        var tCo = findCompanyName(data, toVal) || '-';
-
-        const colorCompany = (c) => {
-          let u = c.toUpperCase();
-          if (u.includes('YSD') || u.includes('YOSHIDA') || u.includes('ヨシダ')) {
-            return `<span style="font-weight:700; color:#0f766e; background:#ccfbf1; padding:2px 6px; border-radius:4px; font-size:11px;">${escapeHtml(c)}</span>`;
-          } else if (c !== '-') {
-            return `<span style="font-weight:700; color:#c2410c; background:#ffedd5; padding:2px 6px; border-radius:4px; font-size:11px;">${escapeHtml(c)}</span>`;
-          }
-          return escapeHtml(c);
-        };
-
-        transStatus = `${colorCompany(fCo)} <i class="fas fa-long-arrow-alt-right" style="color:#94a3b8; font-size:11px; margin:0 4px;"></i> ${colorCompany(tCo)}`;
-        transDate = formatDateOnly(pick(sRow, ['ShipDate', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
-      }
-
-      // 3. LOCATION
-      let locStatus = '履歴なし (Trống)';
-      let locDate = '---';
-
-      var lLogs = toArray(data && data.locationlog).concat(toArray(data && data.weblocationlog));
-      var validLLogs = [];
-      for (var k = 0; k < lLogs.length; k++) {
-        var lr = lLogs[k];
-        if (isRowForItemByIds(lr, mold)) {
-          lr.timeMs = parseTimeAny(pick(lr, ['DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
-          validLLogs.push(lr);
-        }
-      }
-      if (validLLogs.length > 0) {
-        validLLogs.sort((a, b) => (b.timeMs || 0) - (a.timeMs || 0));
-        var lRow = validLLogs[0];
-
-        var oldR = normId(lRow.OldRackLayer) || '-';
-        var newR = normId(lRow.NewRackLayer) || '-';
-        locStatus = `${escapeHtml(oldR)} <i class="fas fa-long-arrow-alt-right" style="color:#94a3b8; font-size:11px; margin:0 4px;"></i> ${escapeHtml(newR)}`;
-        locDate = formatDateOnly(pick(lRow, ['DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
-      }
-
-      return `
-        <div style="display:flex; flex-direction:column; gap:8px;">
-        
-          <div class="dp-history-tracking-row" style="display:flex; flex-direction:column; padding: 10px; background: rgba(248, 250, 252, 0.6); border: 1px solid rgba(15, 23, 42, 0.06); border-radius: 8px; gap: 6px;">
-             <!-- TEFLON LINE -->
-             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div style="display:flex; flex-direction:column; line-height:1.3; gap:2px; margin-top:2px;">
-                   <span style="font-weight: 700; color: #475569; font-size: 11px;">テフロン現況</span>
-                   <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">TT mạ Teflon</span>
-                </div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                   ${hasTeflon ? `<span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 20px; ${teflonBadge}">${safeText(teflonStatus)}</span>` : `<span style="font-size: 12.5px; font-weight: 600; color:#0f172a; padding: 2px 4px;">${safeText(teflonStatus)}</span>`}
-                   <div style="font-size: 10.5px; font-weight: 600; color: #64748b; margin-top:3px;">
-                      <i class="far fa-calendar-alt"></i> ${teflonDate}
-                   </div>
-                </div>
-             </div>
-          </div>
-
-          <div class="dp-history-tracking-row" style="display:flex; flex-direction:column; padding: 10px; background: rgba(248, 250, 252, 0.6); border: 1px solid rgba(15, 23, 42, 0.06); border-radius: 8px; gap: 6px;">
-             <!-- TRANSPORT LINE -->
-             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div style="display:flex; flex-direction:column; line-height:1.3; gap:2px; margin-top:2px;">
-                   <span style="font-weight: 700; color: #475569; font-size: 11px;">直近の輸送</span>
-                   <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">Vận chuyển GN</span>
-                </div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                   <span style="font-size: 13px; font-weight: 700; color: #1e293b; padding: 2px 4px;">${transStatus}</span>
-                   <div style="font-size: 10.5px; font-weight: 600; color: #64748b; margin-top:3px;">
-                      <i class="far fa-calendar-alt"></i> ${transDate}
-                   </div>
-                </div>
-             </div>
-          </div>
-          
-          <div class="dp-history-tracking-row" style="display:flex; flex-direction:column; padding: 10px; background: rgba(248, 250, 252, 0.6); border: 1px solid rgba(15, 23, 42, 0.06); border-radius: 8px; gap: 6px;">
-             <!-- LOCATION LINE -->
-             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div style="display:flex; flex-direction:column; line-height:1.3; gap:2px; margin-top:2px;">
-                   <span style="font-weight: 700; color: #475569; font-size: 11px;">直近の位置変更</span>
-                   <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">Đổi vị trí GN</span>
-                </div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                   <span style="font-size: 13px; font-weight: 700; color: #1e293b; padding: 2px 4px;">${locStatus}</span>
-                   <div style="font-size: 10.5px; font-weight: 600; color: #64748b; margin-top:3px;">
-                      <i class="far fa-calendar-alt"></i> ${locDate}
-                   </div>
-                </div>
-             </div>
-          </div>
-          
-        </div>
-      `;
-    }
-
     renderDesktopMiniSnapshots(mold) {
-      return "";
-
 
 
 
@@ -13500,7 +13309,7 @@ Created: 2026-02-04
 
 
 
-          <div class="section-header color-amber">
+          <div class="section-header color-slate">
 
 
 
@@ -13568,7 +13377,7 @@ Created: 2026-02-04
 
 
 
-                       <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">${parts[1]}</span>
+                       <span style="font-size: 10px; color: #64748b; font-weight: 500;">${parts[1]}</span>
 
 
 
@@ -13592,7 +13401,7 @@ Created: 2026-02-04
 
 
 
-                   <div style="flex: 1 1 auto; text-align: right; font-size: 13.5px; font-weight: 600; color: #0f172a;">${f.val || '-'}</div>
+                   <div style="flex: 1 1 auto; text-align: right; font-size: 15px; font-weight: 600; color: #0f172a;">${f.val || '-'}</div>
 
 
 
@@ -13621,6 +13430,18 @@ Created: 2026-02-04
 
 
               <i class="fas fa-history"></i><div style="display:flex;flex-direction:column"><span class="dp-action-label-ja">履歴</span><span class="sub dp-action-label-vi">History</span></div>
+
+
+
+            </button>
+
+
+
+            <button class="dp-action-btn" type="button" data-jump="teflon">
+
+
+
+              <i class="fas fa-spray-can"></i><div style="display:flex;flex-direction:column"><span class="dp-action-label-ja">Teflon</span><span class="sub dp-action-label-vi">Coating</span></div>
 
 
 
@@ -13701,7 +13522,6 @@ Created: 2026-02-04
 
 
       const statusInfo = this.getStorageStatus(item) || { class: 'status-unknown', icon: 'fas fa-question-circle', textShort: '---', lastConfirmDateText: '---', isExpired: false };
-      const isOut = statusInfo.class === 'status-out';
 
 
 
@@ -13741,9 +13561,7 @@ Created: 2026-02-04
 
 
 
-      const dimBadge = isOut && !!companyInfo.isExternal;
-      const rackLocationBadgeClsBase = this.isDesktopWide() ? 'dp-location-badge dp-location-badge--desktop' : 'dp-location-badge';
-      const rackLocationBadgeCls = dimBadge ? `${rackLocationBadgeClsBase} dp-badge-dimmed` : rackLocationBadgeClsBase;
+      const rackLocationBadgeCls = this.isDesktopWide() ? 'dp-location-badge dp-location-badge--desktop' : 'dp-location-badge';
 
 
 
@@ -13780,11 +13598,6 @@ Created: 2026-02-04
 
 
       const rackLayerText = (rackId || layerNum) ? `${String(rackId ?? '').trim() || '-'}-${String(layerNum ?? '').trim() || '-'}` : '-';
-
-
-      const rackLabelDictBi = isOut ? ['返却先棚', 'Giá trả về'] : ['棚-段', 'Giá - Tầng'];
-      const rackLabelMobileDictBi = isOut ? ['返却先棚', '(Giá trả về)'] : ['棚-段', '(Giá - Tầng)'];
-      const rackBadgeCls = dimBadge ? 'dp-badge-racklayer dp-badge-dimmed' : 'dp-badge-racklayer';
 
 
 
@@ -13840,10 +13653,7 @@ Created: 2026-02-04
 
 
 
-                <div style="display:flex; align-items:center; gap: 6px; flex-wrap:wrap;">
-              <div class="${companyBadgeCls}">${e(companyInfo.nameShort || '-')}</div>
-              ${companyInfo.nameFull && companyInfo.nameFull !== companyInfo.nameShort ? `<div style="font-size:10px; color:#475569; font-weight:700;">${e(companyInfo.nameFull)}</div>` : ''}
-            </div>
+                <div class="${companyBadgeCls}">${e(companyInfo.nameShort || '-')}</div>
 
 
 
@@ -13859,14 +13669,11 @@ Created: 2026-02-04
 
 
 
-                <div class="dp-storage-label">${this.renderLabelHtml(this.biLabel(...rackLabelDictBi))}</div>
+                <div class="dp-storage-label">${this.renderLabelHtml(this.biLabel('棚-段', 'Giá - Tầng'))}</div>
 
 
 
-                <div style="display:flex; align-items:center; gap: 6px; flex-wrap:wrap;">
-              <div class="${rackBadgeCls} location-link" data-rack-id="${e(rackId)}" data-layer-id="${e(layerNum)}" style="cursor:pointer;" title="${isOut ? 'Nhấp để xem ảnh giá trả về' : 'Nhấp để xem ảnh giá'}">${e(rackLayerText)}</div>
-              ${rackLocation !== '-' ? rackLocationValueHtml : ''}
-            </div>
+                <div class="dp-badge-racklayer">${e(rackLayerText)}</div>
 
 
 
@@ -13886,13 +13693,19 @@ Created: 2026-02-04
 
 
 
-                <div style="display:flex; align-items:center; gap: 6px; flex-wrap:wrap;">
-              <div class="status-badge-compact ${e(statusInfo.class || '')}">
-                <i class="${e(statusInfo.icon || '')}"></i>
-                <span>${e(statusInfo.textShort || '---')}</span>
-              </div>
-              ${statusInfo.outDestName ? `<div style="font-size:11px; color:#3b82f6; font-weight:700;">(${e(statusInfo.outDestName)})</div>` : ''}
-            </div>
+                <div class="status-badge-compact ${e(statusInfo.class || '')}">
+
+
+
+                  <i class="${e(statusInfo.icon || '')}"></i>
+
+
+
+                  <span>${e(statusInfo.textShort || '---')}</span>
+
+
+
+                </div>
 
 
 
@@ -14012,11 +13825,11 @@ Created: 2026-02-04
 
 
 
-                      <div style="font-size:10px;font-weight:700;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${this.renderLabelHtml(this.biLabel(...rackLabelMobileDictBi))}</div>
+                      <div style="font-size:10px;font-weight:700;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${this.renderLabelHtml(this.biLabel('棚-段', '(Giá - Tầng)'))}</div>
 
 
 
-                      <div style="font-size:11px;font-weight:700;max-width:60%;text-align:right;"><span class="${rackBadgeCls} location-link" data-rack-id="${e(rackId)}" data-layer-id="${e(layerNum)}" style="cursor:pointer;" title="${isOut ? 'Nhấp để xem ảnh giá trả về' : 'Nhấp để xem ảnh giá'}">${e(rackLayerText)}</span></div>
+                      <div style="font-size:11px;font-weight:700;max-width:60%;text-align:right;"><span class="dp-badge-racklayer">${e(rackLayerText)}</span></div>
 
 
 
@@ -14088,11 +13901,11 @@ Created: 2026-02-04
 
 
 
-                  <div style="display:flex;align-items:baseline;justify-content:space-between;background-color:#eff6ff;padding:4px 6px;border-radius:4px;">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;">
 
 
 
-                     <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-right:8px;white-space:nowrap;">位置 (Vị trí)</div>
+                     <div style="font-size:11px;font-weight:700;color:#64748b;margin-right:8px;white-space:nowrap;">位置 (Vị trí)</div>
 
 
 
@@ -14104,19 +13917,43 @@ Created: 2026-02-04
 
 
 
-                  ${statusInfo.outDestName ? `
+                  ${rackNotes ? `
 
 
 
-                  <div style="display:flex;align-items:baseline;justify-content:space-between;background-color:#fff1f2;padding:4px 6px;border-radius:4px;border:1px solid #ffe4e6;margin-top:2px;">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;">
 
 
 
-                     <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-right:8px;white-space:nowrap;">出庫先 (Destination)</div>
+                     <div style="font-size:11px;font-weight:700;color:#64748b;margin-right:8px;white-space:nowrap;">メモ(棚) (Ghi chú giá)</div>
 
 
 
-                     <div style="font-size:12px;font-weight:700;color:#d97706;text-align:right;word-break:break-word;">${e(statusInfo.outDestName)}</div>
+                     <div style="font-size:12px;font-weight:600;text-align:right;word-break:break-word;">${e(rackNotes)}</div>
+
+
+
+                  </div>
+
+
+
+                  ` : ''}
+
+
+
+                  ${layerNotes ? `
+
+
+
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;">
+
+
+
+                     <div style="font-size:11px;font-weight:700;color:#64748b;margin-right:8px;white-space:nowrap;">メモ(段) (Ghi chú tầng)</div>
+
+
+
+                     <div style="font-size:12px;font-weight:600;text-align:right;word-break:break-word;">${e(layerNotes)}</div>
 
 
 
@@ -14156,62 +13993,27 @@ Created: 2026-02-04
 
 
 
-                        ${(() => {
-          if (isExternal) {
-            const foreignPlace = companyInfo.nameShort || companyInfo.nameFull || statusInfo.outDestName || '';
-            const displayForeignPlace = foreignPlace ? `tại ${e(foreignPlace)}` : '';
-            if (rackLayerText === '0-0') {
-              const jaStr = `社外保管中（${e(foreignPlace)}にて）。返却時はYSDの金型部門にお戻しください。`;
-              const viStr = `Khuôn đang được lưu trữ bên ngoài (${displayForeignPlace}). Khi trả về hãy mang tới phòng khuôn của YSD.`;
-              return `
-                    <div class="dp-storage-warning" style="align-items: flex-start;">
-                      <i class="fas fa-exclamation-triangle" style="margin-top: 2px;"></i>
-                      <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-weight: 700;">${jaStr}</div>
-                        <div>${viStr}</div>
-                      </div>
-                    </div>`;
-            } else {
-              const rackLocSuffixJa = rackLocation !== '-' ? `（${e(rackLocation)}）` : '';
-              const rackLocSuffixVi = rackLocation !== '-' ? ` tại ${e(rackLocation)}` : '';
-              const jaStr = `社外保管中（${e(foreignPlace)}にて）。返却時はYSDの棚 <strong>${e(rackLayerText)}</strong>${rackLocSuffixJa} に戻してください。`;
-              const viStr = `Khuôn đang được lưu trữ bên ngoài (${displayForeignPlace}). Khi trả về hãy trả về giá <strong>${e(rackLayerText)}</strong>${rackLocSuffixVi} của YSD.`;
-              return `
-                    <div class="dp-storage-warning" style="align-items: flex-start;">
-                      <i class="fas fa-exclamation-triangle" style="margin-top: 2px;"></i>
-                      <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-weight: 700;">${jaStr}</div>
-                        <div>${viStr}</div>
-                      </div>
-                    </div>`;
-            }
-          } else if (isOut) {
-            if (statusInfo.outDestName) {
-              const jaStr = `一時持出中（現在地：${e(statusInfo.outDestName)}）。返却時は元の棚 <strong>${e(rackLayerText)}</strong> に戻してください。`;
-              const viStr = `Khuôn đang tạm thời được lấy ra khỏi giá, đang ở ${e(statusInfo.outDestName)}. Vị trí giá khi trả về là <strong>${e(rackLayerText)}</strong>.`;
-              return `
-                    <div class="dp-storage-warning" style="align-items: flex-start; background-color:#fffbeb; color:#d97706; border-color:#fef3c7;">
-                      <i class="fas fa-exclamation-circle" style="margin-top: 2px;"></i>
-                      <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-weight: 700;">${jaStr}</div>
-                        <div>${viStr}</div>
-                      </div>
-                    </div>`;
-            } else {
-              const jaStr = `一時持出中。返却時は元の棚 <strong>${e(rackLayerText)}</strong> に戻してください。`;
-              const viStr = `Khuôn đang tạm thời được lấy ra khỏi giá. Vị trí giá khi trả về là <strong>${e(rackLayerText)}</strong>.`;
-              return `
-                    <div class="dp-storage-warning" style="align-items: flex-start; background-color:#fffbeb; color:#d97706; border-color:#fef3c7;">
-                      <i class="fas fa-exclamation-circle" style="margin-top: 2px;"></i>
-                      <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-weight: 700;">${jaStr}</div>
-                        <div>${viStr}</div>
-                      </div>
-                    </div>`;
-            }
-          }
-          return '';
-        })()}
+            ${isExternal ? `
+
+
+
+              <div class="dp-storage-warning">
+
+
+
+                <i class="fas fa-exclamation-triangle"></i>
+
+
+
+                <span>社外保管中 / Khuôn đang được lưu trữ bên ngoài.</span>
+
+
+
+              </div>
+
+
+
+            ` : ''}
 
 
 
@@ -14239,7 +14041,7 @@ Created: 2026-02-04
 
 
 
-      const companyId = item.KeeperCompany || item.CompanyID || '';
+      const companyId = item.KeeperCompany || item.storageCompany || item.CompanyID || '';
 
 
 
@@ -14279,8 +14081,7 @@ Created: 2026-02-04
 
 
 
-      const nameFull = company ? company.CompanyName : "";
-      return { nameShort, isExternal, needsHighlight, nameFull };
+      return { nameShort, isExternal, needsHighlight };
 
 
 
@@ -14312,7 +14113,7 @@ Created: 2026-02-04
 
 
 
-        if (!moldId) return { class: 'status-unknown', icon: 'fas fa-bug', textShort: 'ERR: ' + e.message, lastConfirmDateText: 'ERR', isExpired: false };
+        if (!moldId) return { class: 'status-unknown', icon: 'fas fa-question-circle', textShort: '---', lastConfirmDateText: '---', isExpired: false };
 
 
 
@@ -14368,7 +14169,7 @@ Created: 2026-02-04
 
 
 
-        if (!latest) return { class: 'status-no-history', icon: 'fas fa-question-circle', textShort: 'N/A', lastConfirmDateText: 'N/A', isExpired: false };
+        if (!latest) return { class: 'status-no-history', icon: 'fas fa-question-circle', textShort: '---', lastConfirmDateText: '---', isExpired: false };
 
 
 
@@ -14376,21 +14177,7 @@ Created: 2026-02-04
 
 
 
-        const originalRaw = String(latest?.Status ?? latest?.Action ?? '').trim();
-        let raw = originalRaw.toUpperCase();
-        let baseStatus = originalRaw;
-        let extractedDest = '';
-
-        const parenMatch = originalRaw.match(/^(.*?)\s*[\(\（](.*?)[\)\）]$/);
-        if (parenMatch) {
-          baseStatus = parenMatch[1].trim();
-          extractedDest = parenMatch[2].trim();
-          raw = baseStatus.toUpperCase();
-        } else if (raw.startsWith('OUT ') && originalRaw.length > 4) {
-          baseStatus = 'OUT';
-          extractedDest = originalRaw.substring(4).trim();
-          raw = 'OUT';
-        }
+        const raw = String(latest?.Status ?? latest?.Action ?? '').toUpperCase();
 
 
 
@@ -14518,22 +14305,7 @@ Created: 2026-02-04
 
 
 
-        let outDestName = extractedDest;
-        if (cls === 'status-out' && !outDestName) {
-          const destId = latest?.DestinationID || latest?.OutDestinationID || latest?.Destination || item?.OutDestinationID || item?.DestinationID || '';
-          if (destId && window.DataManager) {
-            let dests = [];
-            if (window.DataManager.destinations) dests = window.DataManager.destinations;
-            else if (window.DataManager.getData) dests = window.DataManager.getData('destinations') || [];
-            else if (window.db_destinations) dests = window.db_destinations;
-            else if (this.data && this.data.destinations) dests = this.data.destinations;
-
-            const d = dests.find(x => String(x.DestinationID) === String(destId));
-            if (d) outDestName = d.DestinationName || d.DestinationShortName || destId;
-            else outDestName = destId;
-          }
-        }
-        return { class: cls, icon, textShort: baseStatus || '---', lastConfirmDateText: dateText, isExpired, outDestName };
+        return { class: cls, icon, textShort: raw || '---', lastConfirmDateText: dateText, isExpired };
 
 
 
@@ -14541,7 +14313,7 @@ Created: 2026-02-04
 
 
 
-        return { class: 'status-unknown', icon: 'fas fa-bug', textShort: 'ERR: ' + e.message, lastConfirmDateText: 'ERR', isExpired: false };
+        return { class: 'status-unknown', icon: 'fas fa-question-circle', textShort: '---', lastConfirmDateText: '---', isExpired: false };
 
 
 
@@ -14609,19 +14381,13 @@ Created: 2026-02-04
 
 
 
-      const trayInfoInstruction = safeText(
+      const btnKhayHtml = ` <button type="button" class="dp-action-btn tray-link" data-action="opentray" style="padding: 2px 6px; font-size: 11px; display:inline-flex; align-items:center; margin-left: 8px; border-radius: 4px; background:#e0f2fe; color:#0284c7; border: 1px solid #7dd3fc; cursor: pointer; flex-shrink: 0;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Khay / トレイ</button>`;
 
-
-
+      const trayInfoInstructionValue =
         job?.TrayInfo || job?.TrayInstruction || job?.InstructionTray || job?.TrayInfoFromInstruction || job?.NPCode || job?.NP || job?.NPNo ||
+        design?.TrayInfoForMoldDesign || design?.TrayInfo;
 
-
-
-        design?.TrayInfoForMoldDesign || design?.TrayInfo
-
-
-
-      );
+      const trayInfoInstruction = safeText(trayInfoInstructionValue) + btnKhayHtml;
 
 
 
@@ -14937,7 +14703,7 @@ Created: 2026-02-04
 
 
 
-        <div style="font-size: 16px; font-weight: 800; color:#0f172a; line-height: 1.4; display: flex; align-items: center; gap: 8px;">
+        <div style="font-size: 20px; font-weight: 800; color:#0f172a; line-height: 1.4; display: flex; align-items: center; gap: 8px;">
 
 
 
@@ -14979,11 +14745,11 @@ Created: 2026-02-04
 
 
 
-      const itemCode = isMold ? safeText(item.MoldCode) : isTray ? safeText(item.TrayCode) : safeText(item.CutterNo || item.CutterCode);
+      const itemCode = isMold ? safeText(item.MoldCode) : safeText(item.CutterNo || item.CutterCode);
 
 
 
-      const itemID = isMold ? safeText(item.MoldID) : isTray ? safeText(item.TrayID || item.ID) : safeText(item.CutterID || item.ID);
+      const itemID = isMold ? safeText(item.MoldID) : safeText(item.CutterID || item.ID);
 
 
 
@@ -15107,11 +14873,11 @@ Created: 2026-02-04
 
 
 
-                 <span style="font-weight: 700; color: #475569; font-size: 11.5px;">${parts[0]}</span>
+                 <span style="font-weight: 700; color: #475569; font-size: 13px;">${parts[0]}</span>
 
 
 
-                 <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">${parts[1]}</span>
+                 <span style="font-size: 10px; color: #64748b; font-weight: 500;">${parts[1]}</span>
 
 
 
@@ -15291,7 +15057,7 @@ Created: 2026-02-04
 
 
 
-             font-size: 13.5px !important; 
+             font-size: 15px !important; 
 
 
 
@@ -15427,7 +15193,7 @@ Created: 2026-02-04
 
 
 
-          <div class="section-header color-indigo" style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="section-header color-rose" style="display: flex; justify-content: space-between; align-items: center;">
 
 
 
@@ -15447,7 +15213,7 @@ Created: 2026-02-04
 
 
 
-            <div style="font-family: 'Courier New', monospace; font-size: 13.5px; font-weight: 800; background: rgba(255,255,255,0.6); padding: 2px 8px; border-radius: 6px; color: #4338ca;">
+            <div style="font-family: 'Courier New', monospace; font-size: 15px; font-weight: 800; background: rgba(255,255,255,0.6); padding: 2px 8px; border-radius: 6px; color: #be123c;">
 
 
 
@@ -15797,7 +15563,7 @@ Created: 2026-02-04
 
 
 
-        <div class="section-header color-blue">
+        <div class="section-header color-rose">
 
 
 
@@ -16015,7 +15781,7 @@ Created: 2026-02-04
 
 
 
-        <div class="section-header color-blue">
+        <div class="section-header color-rose">
 
 
 
@@ -16311,19 +16077,16 @@ Created: 2026-02-04
 
 
 
+      const trayId = mold?.trayInfo?.TrayID || mold?.trayInfo?.id || '';
+      let trayActionButton = '';
+      if (trayId) {
+        trayActionButton = `<div style="margin-top: 8px;"><button onclick="if(window.TrayManager) { window.TrayManager.selectedTrayId='${trayId}'; window.app.switchView('tray'); if(window.DetailPanel) window.DetailPanel.close(); } window.event.stopPropagation();" style="background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc; border-radius:6px; padding:6px 16px; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.2s;"><i class="fas fa-box-open" style="margin-right:8px;"></i>${this.biLabel('トレイ管理を開く', 'Mở Quản lý Khay')} (${trayId})</button></div>`;
+      }
+
       const trayNameFromCustomer = this.safeText(
-
-
-
         mold?.trayInfo?.CustomerTrayName || mold?.trayInfo?.TrayName || j?.TrayName || j?.ProductName || j?.CustomerTrayName || j?.CustomerProductName || d?.TrayName || d?.ProductName,
-
-
-
         '-'
-
-
-
-      );
+      ) + trayActionButton;
 
 
 
@@ -16507,7 +16270,7 @@ Created: 2026-02-04
 
 
 
-        { label: this.biLabel('トレイ重量', 'Khối lượng khay'), rawValue: trayWeight },
+        { label: this.biLabel('トレイ重量', 'Khối lượng khay'), rawValue: trayWeight + (trayId ? ` <span title="Chỉnh sửa ở Quản lý khay"><i class="fas fa-external-link-alt" style="color:#0ea5e9; margin-left:6px; cursor:pointer;" onclick="if(window.TrayManager) { window.TrayManager.selectedTrayId='${trayId}'; window.app.switchView('tray'); if(window.DetailPanel) window.DetailPanel.close(); } window.event.stopPropagation();"></i></span>` : '') },
 
 
 
@@ -17335,7 +17098,7 @@ Created: 2026-02-04
 
 
 
-          <div class="section-header color-indigo">
+          <div class="section-header color-rose">
 
 
 
@@ -17653,7 +17416,7 @@ Created: 2026-02-04
 
 
 
-        <div class="section-header color-blue">
+        <div class="section-header color-rose">
 
 
 
@@ -17871,7 +17634,7 @@ Created: 2026-02-04
 
 
 
-        <div class="section-header color-blue">
+        <div class="section-header color-rose">
 
 
 
@@ -19861,7 +19624,7 @@ Created: 2026-02-04
 
       let html = `<div class="modal-section">
 
-        <div class="section-header color-indigo">
+        <div class="section-header color-slate">
 
           <i class="fas fa-clipboard-list"></i>
 
@@ -20327,7 +20090,7 @@ Created: 2026-02-04
 
 
 
-          <div class="section-header color-blue">
+          <div class="section-header color-indigo">
 
 
 
@@ -20435,7 +20198,7 @@ Created: 2026-02-04
 
 
 
-          <div class="section-header color-blue">
+          <div class="section-header color-indigo">
 
 
 
@@ -20671,7 +20434,7 @@ Created: 2026-02-04
 
 
 
-          <div class="section-header color-blue">
+          <div class="section-header color-slate">
 
 
 
@@ -23667,7 +23430,7 @@ Created: 2026-02-04
 
 
 
-      const companyId = item?.KeeperCompany || item?.CompanyID || item?.companyId;
+      const companyId = item?.KeeperCompany || item?.storageCompany || item?.CompanyID || item?.companyId;
 
 
 
@@ -23875,12 +23638,7 @@ Created: 2026-02-04
 
     getLocationHistory(itemId, kind) {
 
-      let logs = [];
-      if (kind === 'TRAY') {
-        logs = Array.isArray(this.data.traylocationlog) ? this.data.traylocationlog : [];
-      } else {
-        logs = (this.data.locationlog || []).concat(this.data.weblocationlog || []);
-      }
+      const logs = (this.data.locationlog || []).concat(this.data.weblocationlog || []);
 
 
 

@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
    NOTIFICATION MODULE v8.2.3-3
    Hệ thống thông báo cho Mold/Cutter Search System
@@ -12,7 +13,7 @@
    Updated: 2026-03-05
    ========================================================================== */
 
-(function() {
+(function () {
   'use strict';
 
   // ===========================================================================
@@ -51,8 +52,8 @@
     var sliced = (Number.isFinite(keep) && keep > 0) ? arr.slice(0, keep) : arr.slice();
 
     return sliced
-      .filter(function(n){ return n && typeof n === 'object'; })
-      .map(function(n){
+      .filter(function (n) { return n && typeof n === 'object'; })
+      .map(function (n) {
         var type = _nmText(n.type, 16) || 'info';
         var title = _nmText(n.title, maxTitle);
         if (!title && typeof getDefaultTitleFn === 'function') title = getDefaultTitleFn(type);
@@ -72,7 +73,7 @@
   function _sortForKeep(list) {
     var arr = Array.isArray(list) ? list.slice() : [];
     // Ưu tiên giữ chưa đọc trước, sau đó theo thời gian mới nhất
-    arr.sort(function(a, b){
+    arr.sort(function (a, b) {
       var ar = !!(a && a.read);
       var br = !!(b && b.read);
       if (ar !== br) return ar ? 1 : -1;
@@ -233,8 +234,8 @@
 
         try {
           var sorted = _sortForKeep(this.notifications)
-            .filter(function(n){ return n && typeof n === 'object'; })
-            .filter(function(n){ return !(n.dismissed && n.read); });
+            .filter(function (n) { return n && typeof n === 'object'; })
+            .filter(function (n) { return !(n.dismissed && n.read); });
 
           var levels = [40, 25, 15, 8];
           for (var i = 0; i < levels.length; i++) {
@@ -249,7 +250,7 @@
             }
           }
 
-          try { localStorage.removeItem(this.storageKey); } catch (_) {}
+          try { localStorage.removeItem(this.storageKey); } catch (_) { }
           try {
             var compactMin = _compactNotifications(sorted, 8, { maxMsg: 120, maxTitle: 60 }, this.getDefaultTitle.bind(this));
             localStorage.setItem(this.storageKey, JSON.stringify(compactMin));
@@ -528,7 +529,7 @@
         position: fixed;
         top: 80px;
         right: 20px;
-        z-index: 9999;
+        z-index: 999999;
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -678,7 +679,7 @@
         if (!window.NotificationModule || typeof window.NotificationModule.show !== 'function') return null;
         return window.NotificationModule.show(type, message, title, data);
       } catch (e) {
-        try { console.warn('notify() failed:', e); } catch (_) {}
+        try { console.warn('notify() failed:', e); } catch (_) { }
         return null;
       }
     }

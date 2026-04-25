@@ -1,3 +1,4 @@
+/* v9.0.2 */
 /* ============================================================================
 RESULTS TABLE RENDERER v8.3.2 CSS (Deep Teal - ƒê·ªìng b·ªô styles v8.3.2-1)
 MoldCutterSearch System
@@ -853,7 +854,7 @@ Ghi ch√∫:
   .results-table tbody tr{ border-bottom: 1px solid #ddd !important; }
 }
 
-/ *   = = = = =   T H   M    N H   D †N G   C ÿT   N O .   ( S T T )   V ¿   C ÿT   I D   ( √   D ‹I )   = = = = =   * / 
+/ *   = = = = =   T H  M   N H   D N G   C T   N O .   ( S T T )   V    C T   I D   (    D I )   = = = = =   * / 
  . r e s u l t s - t a b l e   t h . c o l - n o ,   . r e s u l t s - t a b l e   t d . c o l - n o   { 
      w i d t h :   4 0 p x ; 
      m i n - w i d t h :   4 0 p x ; 
@@ -877,7 +878,7 @@ Ghi ch√∫:
      b a c k g r o u n d :   v a r ( - - r t - s u r f a c e ) ; 
  } 
  
- / *   £m   b £o   i d   n ±m   t )n h   ( s t a t i c )   v Ï   „   ﬂ  c u —i   * / 
+ / *   m   b o   i d   n m   t )n h   ( s t a t i c )   v         c u i   * / 
  . t a b l e - s c r o l l - c o n t a i n e r . u n l o c k e d   . r e s u l t s - t a b l e   t h . c o l - i d , 
  . t a b l e - s c r o l l - c o n t a i n e r . u n l o c k e d   . r e s u l t s - t a b l e   t d . c o l - i d   { 
      p o s i t i o n :   s t a t i c   ! i m p o r t a n t ; 
@@ -886,7 +887,7 @@ Ghi ch√∫:
  } 
  
  @ m e d i a   ( m a x - w i d t h :   7 6 8 p x ) { 
-     / *   ®n   c Ÿt   I D   t r Í n   m o b i l e   √  t i øt   k i «m   d i «n   t Ì c h   * / 
+     / *   n   c t   I D   t r  n   m o b i l e     t i t   k i m   d i n   t  c h   * / 
      . r e s u l t s - t a b l e   t h . c o l - i d ,   . r e s u l t s - t a b l e   t d . c o l - i d   {   d i s p l a y :   n o n e   ! i m p o r t a n t ;   } 
      . t a b l e - s c r o l l - c o n t a i n e r . u n l o c k e d   . r e s u l t s - t a b l e   t h . c o l - i d , 
      . t a b l e - s c r o l l - c o n t a i n e r . u n l o c k e d   . r e s u l t s - t a b l e   t d . c o l - i d   {   d i s p l a y :   n o n e   ! i m p o r t a n t ;   } 
@@ -894,7 +895,8 @@ Ghi ch√∫:
      . r e s u l t s - t a b l e   . c o l - n o   {   w i d t h :   3 5 p x ;   m i n - w i d t h :   3 5 p x ;   } 
      . t a b l e - s c r o l l - c o n t a i n e r . u n l o c k e d   . r e s u l t s - t a b l e   t h . c o l - n o , 
      . t a b l e - s c r o l l - c o n t a i n e r . u n l o c k e d   . r e s u l t s - t a b l e   t d . c o l - n o   { 
-         l e f t :   4 0 p x ;   / *   C h e c k b o x   t r Í n   m o b i l e   l ‡   4 0 p x   * / 
+         l e f t :   4 0 p x ;   / *   C h e c k b o x   t r  n   m o b i l e   l    4 0 p x   * / 
      } 
- }  
+ } 
+ 
  

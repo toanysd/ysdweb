@@ -1,3 +1,4 @@
+/* v9.0.2 */
 /* ============================================================================
 checkin-checkout-v8.4.6.css
 MoldCutterSearch - Check-in / Check-out UI (CSS sạch)
@@ -1023,3 +1024,8 @@ body.cio-modal-open{
 
   .cio-search{ width: 180px; }
 }
+
+
+.cio-stamp-btn.audit{background:var(--cio-info,#0ea5e9);border-color:rgba(14,165,233,.5)}
+.cio-stamp-btn.audit:active{background:#0284c7;transform:translateY(2px)}
+.cio-recent-st.audit{background:#f0fdf4;color:#166534;border-color:#bbf7d0}

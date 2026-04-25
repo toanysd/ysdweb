@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
    relocate-wizard-module.js
    Module: Thay đổi vị trí (Nội bộ) bằng UI 4 Bước
@@ -155,8 +156,8 @@
             var dr = document.getElementById('rw-drawer');
             if (!dr) return;
 
-            var code = (this.currentItem && (this.currentItem.MoldCode || this.currentItem.CutterNo)) || '';
-            var name = (this.currentItem && (this.currentItem.MoldName || this.currentItem.CutterName)) || '';
+            var code = (this.currentItem && (this.currentItem.MoldCode || this.currentItem.CutterNo || this.currentItem.TrayCode)) || '';
+            var name = (this.currentItem && (this.currentItem.MoldName || this.currentItem.CutterName || this.currentItem.TrayName || this.currentItem.MoldTrayName)) || '';
 
             var html = '<div class="cio-topbar" style="background:#475569;">' +
                 '<div class="cio-top-title">' +
@@ -501,7 +502,9 @@
             var el = document.getElementById('rw-history-tbl');
             if (!el) return;
             var isMold = Boolean(this.currentItem && this.currentItem.MoldID);
-            var idToFind = isMold ? this.currentItem.MoldID : this.currentItem.CutterID;
+            var isCutter = Boolean(this.currentItem && this.currentItem.CutterID && !this.currentItem.MoldID);
+            var isTray = Boolean(this.currentItem && this.currentItem.TrayID && !this.currentItem.MoldID && !this.currentItem.CutterID);
+            var idToFind = isTray ? this.currentItem.TrayID : (isMold ? this.currentItem.MoldID : this.currentItem.CutterID);
 
             var allSt = [];
             if (global.DataManager && global.DataManager.data && global.DataManager.data.statuslogs) {
@@ -511,7 +514,8 @@
             var records = allSt.filter(x => {
                 if (x.UpdateType !== 'Location') return false;
                 if (isMold && x.MoldID == idToFind) return true;
-                if (!isMold && x.CutterID == idToFind) return true;
+                if (isCutter && x.CutterID == idToFind) return true;
+                if (isTray && x.TrayID == idToFind) return true;
                 return false;
             });
             records.sort((a, b) => new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime());
@@ -554,9 +558,13 @@
                 EmployeeID: this.state.employeeId,
                 Notes: this.state.notes
             };
-            var isMold = this.currentItem.MoldID != null;
+            var isMold = Boolean(this.currentItem.MoldID);
+            var isCutter = Boolean(this.currentItem.CutterID && !this.currentItem.MoldID);
+            var isTray = Boolean(this.currentItem.TrayID && !this.currentItem.MoldID && !this.currentItem.CutterID);
+
             if (isMold) payload.MoldID = this.currentItem.MoldID;
-            else payload.CutterID = this.currentItem.CutterID;
+            else if (isCutter) payload.CutterID = this.currentItem.CutterID;
+            else if (isTray) payload.TrayID = this.currentItem.TrayID;
 
             var self = this;
             fetch(API_CHECKLOG, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -578,14 +586,15 @@
                         notes: this.state.notes
                     };
                     if (isMold) locPayload.MoldID = payload.MoldID;
-                    if (!isMold) locPayload.CutterID = payload.CutterID;
+                    if (isCutter) locPayload.CutterID = payload.CutterID;
+                    if (isTray) locPayload.TrayID = payload.TrayID;
 
                     fetch(API_LOCATION, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(locPayload) });
 
-                    // ★ Persist RackLayerID change into molds.csv (or cutters.csv)
-                    var csvFile = isMold ? 'molds.csv' : 'cutters.csv';
-                    var idField = isMold ? 'MoldID' : 'CutterID';
-                    var idValue = isMold ? self.currentItem.MoldID : self.currentItem.CutterID;
+                    // ★ Persist RackLayerID change into molds.csv (or cutters.csv or trays.csv)
+                    var csvFile = isTray ? 'trays.csv' : (isMold ? 'molds.csv' : 'cutters.csv');
+                    var idField = isTray ? 'TrayID' : (isMold ? 'MoldID' : 'CutterID');
+                    var idValue = isTray ? self.currentItem.TrayID : (isMold ? self.currentItem.MoldID : self.currentItem.CutterID);
                     var upsertPayload = {
                         filename: csvFile,
                         idField: idField,

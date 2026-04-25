@@ -1,3 +1,4 @@
+// v9.0.2
 /*
   supabase-config-v8.4.2.js
   MoldCutterSearch - Cấu hình Supabase + cấu hình gửi mail ảnh (Edge Function)

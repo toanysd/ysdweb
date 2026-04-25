@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
    transfer-location-module.js
    Module Vận chuyển
@@ -489,18 +490,61 @@
         },
 
         deleteShipRecord: function (shipId) {
-            // Note: Full delete API logic needs to be implemented. For now we just remove from local memory.
-            if (global.DataManager && global.DataManager.data && global.DataManager.data.shiplog) {
-                var logs = global.DataManager.data.shiplog;
-                for (var i = 0; i < logs.length; i++) {
-                    if (logs[i].ShipID === shipId) {
-                        logs.splice(i, 1);
-                        break;
+            if (!shipId) return;
+            var self = this;
+            if (window.notify) window.notify.info('Đang xóa bản ghi qua API...', 'Trạng thái');
+
+            var endpoint = resolveApiUrl('/api/csv/upsert');
+            var employee = '1';
+            try {
+                if (window.app && window.app.currentUser) employee = window.app.currentUser.EmployeeID || '1';
+            } catch (e) { }
+
+            var deleteReq = fetch(endpoint, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: 'shiplog.csv', idField: 'ShipID', idValue: shipId, updates: {}, mode: 'delete' })
+            });
+
+            var dchLog = {
+                DataChangeID: 'DCH' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                TableName: 'shiplog.csv', RecordID: shipId, RecordIDField: 'ShipID', FieldName: 'ShipStatus',
+                OldValue: 'ACTIVE', NewValue: 'DELETED', ChangedAt: new Date().toISOString(), ChangedBy: employee, ChangeSource: 'transfer_module_delete', ChangeNote: 'User trigger deletion', IsConflict: 'FALSE'
+            };
+
+            var dchReq = fetch(endpoint, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: 'datachangehistory.csv', idField: 'DataChangeID', idValue: dchLog.DataChangeID, updates: dchLog, mode: 'insert' })
+            });
+
+            Promise.all([deleteReq, dchReq])
+                .then(function (responses) {
+                    var allOk = responses.every(function (r) { return r.ok; });
+                    if (!allOk) throw new Error('API Http error');
+                    return Promise.all(responses.map(function (r) { return r.json(); }));
+                })
+                .then(function (results) {
+                    results.forEach(function (res) {
+                        if (res && res.success === false) throw new Error(res.message);
+                    });
+
+                    // Xóa bộ nhớ đệm an toàn
+                    if (global.DataManager && global.DataManager.data && global.DataManager.data.shiplog) {
+                        var logs = global.DataManager.data.shiplog;
+                        for (var i = 0; i < logs.length; i++) {
+                            if (String(logs[i].ShipID) === String(shipId)) {
+                                logs.splice(i, 1);
+                                break;
+                            }
+                        }
                     }
-                }
-            }
-            if (window.notify) window.notify.success('Đã xóa log [' + shipId + ']');
-            this.renderHistory();
+                    if (window.notify) window.notify.success('Đã xóa log [' + shipId + '] thành công trên hệ thống!');
+                    self.renderHistory();
+                })
+                .catch(function (err) {
+                    console.error('Delete ShipLog Error:', err);
+                    if (window.notify) window.notify.error('Lỗi khi xóa: ' + err.message);
+                    else alert('Xóa thất bại: ' + err.message);
+                });
         },
 
         submitShip: function () {

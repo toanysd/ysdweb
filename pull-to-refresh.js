@@ -1,3 +1,4 @@
+// v9.0.2
 (function() {
     console.log('[PullToRefresh] Initializing v8.5.11 - Optimizing Swipe Focus Mobile...');
     let startY = 0;

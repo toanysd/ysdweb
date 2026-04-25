@@ -1,3 +1,4 @@
+// v9.0.2
 /* ============================================================================
    RESULTS TABLE RENDERER v8.2.1
    Mobile-first fixes + Resizable columns + Bilingual header 2 lines
@@ -62,8 +63,8 @@ class ResultsTableRenderer {
     this.isLocked = true;
 
     // Column resize
-    this.colKeys = ['checkbox','id','code','name','dimensions','location','type','date','status','actions'];
-    this.resizableCols = ['id','code','name','dimensions','location','date'];
+    this.colKeys = ['checkbox', 'id', 'code', 'name', 'dimensions', 'location', 'type', 'date', 'status', 'actions'];
+    this.resizableCols = ['id', 'code', 'name', 'dimensions', 'location', 'date'];
     this.colWidthStorageKey = 'rt_col_widths_v8_5_4_1';
 
     // Callbacks
@@ -413,6 +414,10 @@ class ResultsTableRenderer {
       return item.designInfo.TrayInfoForMoldDesign;
     }
 
+    if (item.type === 'tray') {
+      return item.MoldTrayName || '';
+    }
+
     if (item.type === 'mold') {
       return item.MoldName || '';
     }
@@ -422,10 +427,10 @@ class ResultsTableRenderer {
 
   getRackLocation(item) {
     // Logic mới: Nếu KeeperCompany khác rỗng và không phải là Bản xưởng (CompanyID=1 hoặc 2) -> hiển thị Tên Công ty
-    if (item.keeperCompanyInfo && item.keeperCompanyInfo.CompanyName && 
-        item.KeeperCompany && String(item.KeeperCompany) !== '1' && String(item.KeeperCompany) !== '2') {
-        const cName = item.keeperCompanyInfo.CompanyShortName || item.keeperCompanyInfo.CompanyName;
-        return { display: `Tại ${cName}`, rackId: null, layerNum: null, rackLayerId: null, isExternal: true };
+    if (item.keeperCompanyInfo && item.keeperCompanyInfo.CompanyName &&
+      item.KeeperCompany && String(item.KeeperCompany) !== '1' && String(item.KeeperCompany) !== '2') {
+      const cName = item.keeperCompanyInfo.CompanyShortName || item.keeperCompanyInfo.CompanyName;
+      return { display: `Tại ${cName}`, rackId: null, layerNum: null, rackLayerId: null, isExternal: true };
     }
 
     if (!window.DataManager || !window.DataManager.data) {
@@ -466,8 +471,8 @@ class ResultsTableRenderer {
       return { status: null, date: null };
     }
 
-    const itemId = item.type === 'mold' ? item.MoldID : item.CutterID;
-    const idField = item.type === 'mold' ? 'MoldID' : 'CutterID';
+    const itemId = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+    const idField = item.type === 'tray' ? 'TrayID' : (item.type === 'mold' ? 'MoldID' : 'CutterID');
 
     const logs = window.DataManager.data.statuslogs.filter(log => {
       return String(log[idField] || '').trim() === String(itemId).trim();
@@ -545,19 +550,19 @@ class ResultsTableRenderer {
 
     tbody.innerHTML = pageItems.map((item, idx) => {
       const stt = startIdx + idx + 1;
-      const itemId = item.type === 'mold' ? item.MoldID : item.CutterID;
-      const code = item.type === 'mold' ? (item.MoldCode || '-') : (item.CutterNo || '-');
+      const itemId = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+      const code = item.type === 'tray' ? ('Khay ' + item.TrayID) : (item.type === 'mold' ? (item.MoldCode || '-') : (item.CutterNo || '-'));
       let productName = this.getProductName(item) || '-';
-      
+
       if (item.currentStatus?.status === 'disposed' || item.currentStatus?.status === 'returned') {
-          productName = `<span style="text-decoration: line-through; opacity: 0.7;">${productName}</span>`;
+        productName = `<span style="text-decoration: line-through; opacity: 0.7;">${productName}</span>`;
       }
 
       const dimensions = item.dimensions || '-';
       const rackLocation = this.getRackLocation(item);
       const location = rackLocation.display;
 
-      const typeBadge = item.type === 'mold' ? '金型' : '抜型';
+      const typeBadge = item.type === 'tray' ? 'トレイ' : (item.type === 'mold' ? '金型' : '抜型');
       const typeClass = item.type || 'mold';
 
       const statusInfo = this.getLatestStatus(item);
@@ -565,7 +570,7 @@ class ResultsTableRenderer {
       const statusLabel = this.getStatusLabel(statusInfo.status);
       const statusDate = statusInfo.date ? this.formatDate(statusInfo.date) : '-';
 
-      const uid = (item.type === 'mold' ? 'M_' : 'C_') + itemId;
+      const uid = (item.type === 'tray' ? 'T_' : (item.type === 'mold' ? 'M_' : 'C_')) + itemId;
       const isSelected = this.selectedItems.has(uid);
 
       return `
@@ -607,14 +612,14 @@ class ResultsTableRenderer {
     // Checkbox events
     tbody.querySelectorAll('.row-checkbox').forEach(checkbox => {
       checkbox.addEventListener('click', (e) => {
-          const uid = checkbox.dataset.uid;
-          if (e.shiftKey && this._lastCheckedUid) {
-              e.preventDefault(); 
-              const isChecking = !this.selectedItems.has(uid);
-              this.toggleRangeSelection(this._lastCheckedUid, uid, isChecking);
-          } else {
-              this._lastCheckedUid = uid;
-          }
+        const uid = checkbox.dataset.uid;
+        if (e.shiftKey && this._lastCheckedUid) {
+          e.preventDefault();
+          const isChecking = !this.selectedItems.has(uid);
+          this.toggleRangeSelection(this._lastCheckedUid, uid, isChecking);
+        } else {
+          this._lastCheckedUid = uid;
+        }
       });
       // Giữ change event để phòng các trường hợp toggle qua bàn phím hoặc ngoài click
       checkbox.addEventListener('change', (e) => {
@@ -637,7 +642,7 @@ class ResultsTableRenderer {
       if (!this.onItemClick) return;
 
       const item = this.filteredItems.find(it => {
-        const itemId = it.type === 'mold' ? it.MoldID : it.CutterID;
+        const itemId = it.type === 'tray' ? it.TrayID : (it.type === 'mold' ? it.MoldID : it.CutterID);
         return String(itemId).trim() === idStr;
       });
 
@@ -649,7 +654,7 @@ class ResultsTableRenderer {
       const getItemFromRow = () => {
         const idStr = String(row?.dataset?.id || '').trim();
         return this.filteredItems.find(it => {
-          const itemId = it.type === 'mold' ? it.MoldID : it.CutterID;
+          const itemId = it.type === 'tray' ? it.TrayID : (it.type === 'mold' ? it.MoldID : it.CutterID);
           return String(itemId).trim() === idStr;
         });
       };
@@ -664,21 +669,21 @@ class ResultsTableRenderer {
 
           // SELECTION MODE
           if (this.selectedItems.size > 0) {
-             const isChecking = !this.selectedItems.has(uid);
-             if (e.shiftKey && this._lastCheckedUid) {
-                 this.toggleRangeSelection(this._lastCheckedUid, uid, isChecking);
-             } else {
-                 if (isChecking) this.selectedItems.add(uid);
-                 else this.selectedItems.delete(uid);
-                 this._lastCheckedUid = uid;
+            const isChecking = !this.selectedItems.has(uid);
+            if (e.shiftKey && this._lastCheckedUid) {
+              this.toggleRangeSelection(this._lastCheckedUid, uid, isChecking);
+            } else {
+              if (isChecking) this.selectedItems.add(uid);
+              else this.selectedItems.delete(uid);
+              this._lastCheckedUid = uid;
 
-                 const checkbox = row.querySelector('.row-checkbox');
-                 if (checkbox) checkbox.checked = isChecking;
-                 this.updateRowSelection(uid);
-                 this.updateSelectAllState();
-                 this.notifySelectionChange();
-             }
-             return;
+              const checkbox = row.querySelector('.row-checkbox');
+              if (checkbox) checkbox.checked = isChecking;
+              this.updateRowSelection(uid);
+              this.updateSelectAllState();
+              this.notifySelectionChange();
+            }
+            return;
           }
 
           openDetailByRow(row);
@@ -703,23 +708,23 @@ class ResultsTableRenderer {
 
         // SELECTION MODE
         if (this.selectedItems.size > 0) {
-             e.preventDefault();
-             e.stopPropagation();
-             const isChecking = !this.selectedItems.has(uid);
-             if (e.shiftKey && this._lastCheckedUid) {
-                 this.toggleRangeSelection(this._lastCheckedUid, uid, isChecking);
-             } else {
-                 if (isChecking) this.selectedItems.add(uid);
-                 else this.selectedItems.delete(uid);
-                 this._lastCheckedUid = uid;
+          e.preventDefault();
+          e.stopPropagation();
+          const isChecking = !this.selectedItems.has(uid);
+          if (e.shiftKey && this._lastCheckedUid) {
+            this.toggleRangeSelection(this._lastCheckedUid, uid, isChecking);
+          } else {
+            if (isChecking) this.selectedItems.add(uid);
+            else this.selectedItems.delete(uid);
+            this._lastCheckedUid = uid;
 
-                 const checkbox = row.querySelector('.row-checkbox');
-                 if (checkbox) checkbox.checked = isChecking;
-                 this.updateRowSelection(uid);
-                 this.updateSelectAllState();
-                 this.notifySelectionChange();
-             }
-             return;
+            const checkbox = row.querySelector('.row-checkbox');
+            if (checkbox) checkbox.checked = isChecking;
+            this.updateRowSelection(uid);
+            this.updateSelectAllState();
+            this.notifySelectionChange();
+          }
+          return;
         }
 
         tbody.querySelectorAll('tr.focused-row').forEach(r => r.classList.remove('focused-row'));
@@ -738,8 +743,8 @@ class ResultsTableRenderer {
         pressTimer = window.setTimeout(() => {
           const item = getItemFromRow();
           if (item) {
-             const touch = e.touches[0] || e.changedTouches[0];
-             this.openTableActionMenu({ clientX: touch.clientX, clientY: touch.clientY, target: row }, item);
+            const touch = e.touches[0] || e.changedTouches[0];
+            this.openTableActionMenu({ clientX: touch.clientX, clientY: touch.clientY, target: row }, item);
           }
         }, 600); // Đè 600ms
       });
@@ -754,7 +759,7 @@ class ResultsTableRenderer {
 
         const idStr = String(btn.dataset.id || '').trim();
         const item = this.filteredItems.find(it => {
-          const itemId = it.type === 'mold' ? it.MoldID : it.CutterID;
+          const itemId = it.type === 'tray' ? it.TrayID : (it.type === 'mold' ? it.MoldID : it.CutterID);
           return String(itemId).trim() === idStr;
         });
 
@@ -769,7 +774,7 @@ class ResultsTableRenderer {
 
         const idStr = String(btn.dataset.id || '').trim();
         const item = this.filteredItems.find(it => {
-          const itemId = it.type === 'mold' ? it.MoldID : it.CutterID;
+          const itemId = it.type === 'tray' ? it.TrayID : (it.type === 'mold' ? it.MoldID : it.CutterID);
           return String(itemId).trim() === idStr;
         });
 
@@ -786,8 +791,8 @@ class ResultsTableRenderer {
     const pageItems = this.filteredItems.slice(startIdx, endIdx);
 
     pageItems.forEach(item => {
-      const id = item.type === 'mold' ? item.MoldID : item.CutterID;
-      const uid = (item.type === 'mold' ? 'M_' : 'C_') + id;
+      const id = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+      const uid = (item.type === 'tray' ? 'T_' : (item.type === 'mold' ? 'M_' : 'C_')) + id;
       if (checked) this.selectedItems.add(uid);
       else this.selectedItems.delete(uid);
     });
@@ -808,8 +813,8 @@ class ResultsTableRenderer {
 
   selectAllResults() {
     this.filteredItems.forEach(item => {
-      const id = item.type === 'mold' ? item.MoldID : item.CutterID;
-      const uid = (item.type === 'mold' ? 'M_' : 'C_') + id;
+      const id = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+      const uid = (item.type === 'tray' ? 'T_' : (item.type === 'mold' ? 'M_' : 'C_')) + id;
       this.selectedItems.add(uid);
     });
     this.renderRows();
@@ -831,8 +836,8 @@ class ResultsTableRenderer {
     const pageItems = this.filteredItems.slice(startIdx, endIdx);
 
     const allSelected = pageItems.length > 0 && pageItems.every(item => {
-      const id = item.type === 'mold' ? item.MoldID : item.CutterID;
-      const uid = (item.type === 'mold' ? 'M_' : 'C_') + id;
+      const id = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+      const uid = (item.type === 'tray' ? 'T_' : (item.type === 'mold' ? 'M_' : 'C_')) + id;
       return this.selectedItems.has(uid);
     });
 
@@ -863,8 +868,8 @@ class ResultsTableRenderer {
   selectAllResults() {
     this.selectedItems.clear();
     this.filteredItems.forEach(item => {
-      const id = item.type === 'mold' ? item.MoldID : item.CutterID;
-      const uid = (item.type === 'mold' ? 'M_' : 'C_') + id;
+      const id = item.type === 'tray' ? item.TrayID : (item.type === 'mold' ? item.MoldID : item.CutterID);
+      const uid = (item.type === 'tray' ? 'T_' : (item.type === 'mold' ? 'M_' : 'C_')) + id;
       this.selectedItems.add(uid);
     });
 
@@ -901,8 +906,8 @@ class ResultsTableRenderer {
 
   toggleRangeSelection(startUid, endUid, targetState) {
     if (!this.filteredItems) return;
-    const uids = this.filteredItems.map(it => (it.type === 'mold' ? 'M_' : 'C_') + (it.type === 'mold' ? it.MoldID : it.CutterID));
-    
+    const uids = this.filteredItems.map(it => (it.type === 'tray' ? 'T_' : (it.type === 'mold' ? 'M_' : 'C_')) + (it.type === 'tray' ? it.TrayID : (it.type === 'mold' ? it.MoldID : it.CutterID)));
+
     const startIdx = uids.indexOf(startUid);
     const endIdx = uids.indexOf(endUid);
 
@@ -912,11 +917,11 @@ class ResultsTableRenderer {
     const max = Math.max(startIdx, endIdx);
 
     for (let i = min; i <= max; i++) {
-        if (targetState) {
-            this.selectedItems.add(uids[i]);
-        } else {
-            this.selectedItems.delete(uids[i]);
-        }
+      if (targetState) {
+        this.selectedItems.add(uids[i]);
+      } else {
+        this.selectedItems.delete(uids[i]);
+      }
     }
 
     this.renderRows();
@@ -1076,7 +1081,7 @@ class ResultsTableRenderer {
         document.addEventListener('pointerup', onUp, true);
         document.addEventListener('pointercancel', onUp, true);
 
-        try { handle.setPointerCapture(e.pointerId); } catch(_) {}
+        try { handle.setPointerCapture(e.pointerId); } catch (_) { }
       }, { passive: false });
     });
   }
@@ -1254,7 +1259,7 @@ class ResultsTableRenderer {
     menu.className = 'table-action-menu-v8';
     menu.style.position = 'fixed';
     menu.style.zIndex = '40000';
-    
+
     // Fluent UI adjustments 
     menu.style.background = 'rgba(255, 255, 255, 0.9)';
     menu.style.backdropFilter = 'blur(16px)';
@@ -1272,10 +1277,10 @@ class ResultsTableRenderer {
     const estimatedHeight = 350;
 
     if (left + menuWidth > window.innerWidth) {
-        left = window.innerWidth - menuWidth - 16;
+      left = window.innerWidth - menuWidth - 16;
     }
     if (top + estimatedHeight > window.innerHeight) {
-        top = top - estimatedHeight - 16;
+      top = top - estimatedHeight - 16;
     }
     if (top < 10) top = 10;
     if (left < 10) left = 10;
@@ -1283,7 +1288,7 @@ class ResultsTableRenderer {
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
 
-    const code = item.code || item.MoldCode || item.CutterNo || item.displayCode || '';
+    const code = item.code || item.MoldTrayName || item.MoldCode || item.CutterNo || item.displayCode || '';
     const itemType = item.type || 'mold';
 
     // Styling chung của button con
@@ -1352,9 +1357,9 @@ class ResultsTableRenderer {
         }
 
         // 1) Các action chuẩn: phát event quick-action
-        if (['checkin','checkout','inventory','move','print'].includes(act)) {
+        if (['checkin', 'checkout', 'inventory', 'move', 'print'].includes(act)) {
           document.dispatchEvent(new CustomEvent('quick-action', {
-              detail: { action: act, item, itemType }
+            detail: { action: act, item, itemType }
           }));
           return;
         }
@@ -1362,9 +1367,9 @@ class ResultsTableRenderer {
         // Module lấy QR trực tiếp
         if (act === 'qr') {
           if (window.ExportQR && typeof window.ExportQR.generate === 'function') {
-              window.ExportQR.generate(item);
+            window.ExportQR.generate(item);
           } else {
-              alert('Module Tạo ảnh QR chưa tải xong.');
+            alert('Module Tạo ảnh QR chưa tải xong.');
           }
           return;
         }
@@ -1373,7 +1378,7 @@ class ResultsTableRenderer {
         if (act === 'open-storage-module') {
           const moldId = item.MoldID || item.MoldCode || item.CutterID || item.CutterNo || '';
           document.dispatchEvent(new CustomEvent('module:open', {
-              detail: { module: 'storage', moldId, mold: item, from: 'TableActionMenu' }
+            detail: { module: 'storage', moldId, mold: item, from: 'TableActionMenu' }
           }));
           return;
         }
@@ -1395,8 +1400,8 @@ class ResultsTableRenderer {
 
   closeTableActionMenu() {
     if (this._tableActionMenuEl) {
-        this._tableActionMenuEl.remove();
-        this._tableActionMenuEl = null;
+      this._tableActionMenuEl.remove();
+      this._tableActionMenuEl = null;
     }
   }
 
