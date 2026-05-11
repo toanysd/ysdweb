@@ -1,4 +1,4 @@
-// v9.0.2
+// v9.0.5
 /* ============================================================================
 
    APP v8.3.1 - Main Application Controller (SearchModule Integrated)
@@ -95,24 +95,17 @@ window.SwipeHistoryTrap = (function () {
 
     },
 
-    remove: function (id) {
-
+    remove: function (id, skipBack = false) {
       if (isHandlingPop) return;
-
       var idx = states.findIndex(function (s) { return s.id === id; });
-
       if (idx !== -1) {
-
         if (idx === states.length - 1) {
-
           states.pop();
-
-          isHandlingPop = true;
-
-          window.history.back();
-
-          setTimeout(function () { isHandlingPop = false; }, 100);
-
+          if (!skipBack) {
+            isHandlingPop = true;
+            window.history.back();
+            setTimeout(function () { isHandlingPop = false; }, 100);
+          }
         } else {
 
           states.splice(idx, 1);
@@ -123,86 +116,117 @@ window.SwipeHistoryTrap = (function () {
 
     },
 
-    bindSwipe: function (element, closeCallback) {
-
+    bindSwipe: function (element, closeCallback, options) {
       if (!element) return;
-
+      options = options || {};
+      var followFinger = options.followFinger || false;
       var startX = 0, startY = 0;
+      var currentX = 0;
+      var isSwiping = false;
 
       element.addEventListener('touchstart', function (e) {
+        if (e.touches.length > 0) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+          currentX = startX;
 
-        startX = e.changedTouches[0].screenX;
-
-        startY = e.changedTouches[0].screenY;
-
+          if (followFinger) {
+            // Chỉ bắt đầu swipe nếu chạm vào lề trái (nhỏ hơn 50px) để mở drawer, và không đụng vào bảng
+            var isTable = e.target.closest('table, .table-scroll-container, .table-wrapper, .dp-tab-bar, .dp-actions-grid, .scroll-x');
+            if (!isTable && startX < 50) {
+              isSwiping = true;
+              element.style.transition = 'none';
+            }
+          }
+        }
       }, { passive: true });
 
-      element.addEventListener('touchend', function (e) {
+      if (followFinger) {
+        element.addEventListener('touchmove', function (e) {
+          if (!isSwiping || e.touches.length !== 1) return;
+          if (window._modalClosingSwipe || window._isGlobalModalSwipe) {
+            isSwiping = false;
+            return;
+          }
+          currentX = e.touches[0].clientX;
+          var dy = e.touches[0].clientY - startY;
+          var dx = currentX - startX;
 
-        if (startX < 35) return; // System Back Dead zone
-
-        var endX = e.changedTouches[0].screenX;
-
-        var endY = e.changedTouches[0].screenY;
-
-        var deltaX = endX - startX;
-
-        var deltaY = Math.abs(endY - startY);
-
-        if (deltaX > 60 && deltaY < 60) {
-
-          // Do not interfere with horizontally scrollable elements
-
-          var isTable = e.target.closest('.table-scroll-container, table, .scroll-x, .zoomed-image-wrapper');
-
-          if (isTable) return;
-
-          e.stopPropagation(); // Ngăn chặn sự kiện swipe truyền xuống panel/layer bên dưới
-
-
-
-          if (!element.classList.contains('detail-panel')) {
-
-            element.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
-
-            element.style.transform = 'translateX(100vw)';
-
-            element.style.opacity = '0';
-
-            setTimeout(function () {
-
-              if (typeof closeCallback === 'function') closeCallback();
-
-              // Chỉ loại bỏ transform sau khi panel đã kịp ẩn đi hoàn toàn (tránh bị giật quay lại giữa hình)
-
-              setTimeout(function () {
-
-                if (element) {
-
-                  element.style.transition = '';
-
-                  element.style.transform = '';
-
-                  element.style.opacity = '';
-
-                }
-
-              }, 400);
-
-            }, 250);
-
-          } else {
-
-            if (typeof closeCallback === 'function') closeCallback();
-
+          // Hủy vuốt nếu vuốt dọc nhiều hơn ngang
+          if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 15) {
+            isSwiping = false;
+            element.style.transform = '';
+            element.style.transition = '';
+            return;
           }
 
+          if (dx > 0) {
+            window._panelClosingSwipe = true;
+            element.style.transform = 'translateX(' + dx + 'px)';
+          }
+        }, { passive: true });
+      }
+
+      element.addEventListener('touchend', function (e) {
+        if (e.changedTouches.length === 0) return;
+        var endX = e.changedTouches[0].clientX;
+        var endY = e.changedTouches[0].clientY;
+        var deltaX = endX - startX;
+        var deltaY = Math.abs(endY - startY);
+
+        if (followFinger && isSwiping) {
+          isSwiping = false;
+          setTimeout(function () { window._panelClosingSwipe = false; }, 100);
+          if (deltaX > 80) {
+            element.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
+            element.style.transform = 'translateX(100vw)';
+            element.style.opacity = '0';
+            setTimeout(function () {
+              if (typeof closeCallback === 'function') closeCallback();
+              setTimeout(function () {
+                if (element) {
+                  element.style.transition = '';
+                  element.style.transform = '';
+                  element.style.opacity = '';
+                }
+              }, 400);
+            }, 250);
+          } else {
+            // Kéo chưa đủ xa, snap về vị trí cũ
+            element.style.transition = 'transform 0.25s ease-out';
+            element.style.transform = '';
+            setTimeout(function () {
+              if (element) element.style.transition = '';
+            }, 250);
+          }
+        } else if (!followFinger) {
+          // Logic vuốt cơ bản cũ (không bắt touchmove)
+          var oldStartX = e.changedTouches[0].screenX - deltaX; // Khôi phục screenX nếu cần
+          if (oldStartX < 35 && startX < 35) return; // System Back Dead zone
+          if (deltaX > 60 && deltaY < 60) {
+            var isTable = e.target.closest('.table-scroll-container, table, .scroll-x, .zoomed-image-wrapper');
+            if (isTable) return;
+            e.stopPropagation();
+            window._panelClosingSwipe = true;
+            setTimeout(function () { window._panelClosingSwipe = false; }, 100);
+
+            element.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
+            element.style.transform = 'translateX(100vw)';
+            element.style.opacity = '0';
+            setTimeout(function () {
+              if (typeof closeCallback === 'function') closeCallback();
+              setTimeout(function () {
+                if (element) {
+                  element.style.transition = '';
+                  element.style.transform = '';
+                  element.style.opacity = '';
+                }
+              }, 400);
+            }, 250);
+          }
         }
-
       }, { passive: true });
-
     }
-
   };
 
 })();
@@ -572,48 +596,82 @@ class App {
 
 
   async init() {
+    console.log('🚀 Initializing MoldCutterSearch v8.1.0-3...');
 
-    console.log('🚀 Initializing MoldCutterSearch v8.1.0-1...');
+    // ===== CRITICAL: Lưu tham số ?q= TRƯỚC KHI bất kỳ module nào xóa nó =====
+    // DetailPanel.close() gọi replaceState xóa ?q= trong khi app.js đang chờ DataManager
+    const _savedQParam = new URLSearchParams(window.location.search).get('q');
+    if (_savedQParam) console.log('[SPA Routing] Đã chụp lại tham số q=', _savedQParam);
 
-
-
-    // Wait for DataManager to be ready
-
-    await this.waitForDataManager();
-
-
-
-    // Load data
-
-    await this.loadData();
-
-
-
-    // Initialize UI components
-
+    // V10: Khởi tạo UI Shell (Sidebar, Topbar, Events) MẶC KỆ mạng hay Auth Guard!
     this.initComponents();
-
     this.attachEventListeners();
 
-    // Check QR Scan parameter from URL immediately after data loaded
-
+    // Check QR Scan parameter from URL immediately
     if (window.QRScanSearch && typeof window.QRScanSearch.checkUrlQR === 'function') {
-
       window.QRScanSearch.checkUrlQR();
-
     }
 
     // Chỉ gọi forceSidebarForViewport, nó sẽ tự restore 1 lần khi ở desktop
-
     this.forceSidebarForViewport(true);
-
     window.addEventListener("resize", () => this.forceSidebarForViewport(false));
 
+    // DỪNG LẠI CHỜ DỮ LIỆU ĐẾN. Nếu Auth Guard chưa tải CSV, luồng sẽ bị treo chờ ở đây (điều này có chủ ý)
+    await this.waitForDataManager();
 
+    // Load data khi có tín hiệu Tải xong
+    await this.loadData();
 
     this.switchView(this.currentView);
-
     this.updateResultCount();
+
+    // ===== URL STATE SYNC (Short URL QR Routing) =====
+    const qParam = _savedQParam;
+    if (qParam) {
+      const tryOpenDetail = () => {
+        if (window.DetailPanel && typeof window.DetailPanel.open === 'function') {
+          const typeCode = qParam.charAt(0).toUpperCase();
+          const idCode = qParam.substring(1).trim().toUpperCase();
+          let targetItem = null;
+          let targetKind = '';
+          
+          if (typeCode === 'M') {
+            targetKind = 'mold';
+            targetItem = this.allItems.find(i => {
+              const mId = String(i.MoldID || '').trim().toUpperCase();
+              const mCode = String(i.MoldCode || '').trim().toUpperCase();
+              return mId === idCode || mCode === idCode;
+            });
+          } else if (typeCode === 'C') {
+            targetKind = 'cutter';
+            targetItem = this.allItems.find(i => {
+              const cId = String(i.CutterID || '').trim().toUpperCase();
+              const cCode = String(i.CutterCode || '').trim().toUpperCase();
+              const cNo = String(i.CutterNo || '').trim().toUpperCase();
+              return cId === idCode || cCode === idCode || cNo === idCode;
+            });
+          }
+          
+          if (targetItem) {
+            window.DetailPanel.open(targetItem, targetKind);
+            // Chùi sạch URL sau khi mở (SPA behavior)
+            try {
+              const cleanUrl = new URL(window.location.href);
+              cleanUrl.searchParams.delete('q');
+              window.history.replaceState({}, document.title, cleanUrl.toString());
+            } catch (e) {
+              console.warn('[SPA Routing] Không thể dọn dẹp URL trên môi trường hiện tại:', e);
+            }
+          } else {
+            console.warn('[SPA Routing] Không tìm thấy thiết bị từ tham số q=', qParam);
+          }
+        } else {
+          // Retry if DetailPanel is not yet parsed
+          setTimeout(tryOpenDetail, 50);
+        }
+      };
+      tryOpenDetail();
+    }
 
     // Re-render pagination when viewport changes (3 pages <-> 7 pages)
 
@@ -655,6 +713,7 @@ class App {
 
 
 
+    console.log('🚀 === SYSTEM VERSION UPDATE: v9.1.38 ===');
     console.log('✅ App initialized successfully');
 
     console.log(`📊 Total items: ${this.allItems.length}`);
@@ -1018,6 +1077,19 @@ class App {
     document.addEventListener('tablefiltered', _handleTableFiltered);
 
 
+
+    // Nhận tín hiệu Data mới gián tiếp ở Nền (Auto-Sync)
+    document.addEventListener('data-manager:updated', () => {
+      console.log('🔄 App: Phát hiện Background Sync lấy Data mới, tự động render lại...');
+      this.loadData().then(() => {
+        // Render đè không giật trang
+        if (!this.searchQuery && this.selectedCategory === 'all') {
+          this.switchView(this.currentView);
+        } else {
+          this.applyFilters();
+        }
+      });
+    });
 
     // Giữ tương thích nếu có code cũ bắn 'table:filtered'
 
@@ -1825,6 +1897,14 @@ class App {
 
     }
 
+    const topInventoryBtn = document.getElementById('topInventoryAuditBtn');
+    if (topInventoryBtn) {
+      topInventoryBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleInventory();
+      });
+    }
+
 
 
     const inventoryBtn = document.querySelector('.btn-inventory');
@@ -1921,7 +2001,7 @@ class App {
 
     // QR Scanner button (for both desktop search bar and mobile bottom nav)
 
-    const qrBtns = document.querySelectorAll('.qr-btn, .qr-nav-btn');
+    const qrBtns = document.querySelectorAll('.qr-btn, .qr-nav-btn, .mcs-qr-trigger');
 
     qrBtns.forEach(btn => {
 
@@ -4017,9 +4097,13 @@ class App {
 
           const mode = action.replace('qu-', '').toUpperCase();
 
-          const mapKeys = { 'WEIGHT': 'WEIGHT', 'DESIGN': 'DESIGN_INFO', 'LIFECYCLE': 'LIFECYCLE' };
-
-          window.QuickUpdateModule.openModal(mapKeys[mode] || mode, item);
+          const mapKeys = { 'WEIGHT': 'WEIGHT', 'DESIGN': 'DESIGN_INFO', 'LIFECYCLE': 'LIFECYCLE' }; window.QuickUpdateModule.openModal(mapKeys[mode] || mode, item, {
+            onSuccess: () => {
+              if (window.App && typeof window.App.filterAndRender === 'function') {
+                window.App.filterAndRender();
+              }
+            }
+          });
 
           return;
 
@@ -4261,14 +4345,26 @@ class App {
 
 
 
-    if (window.InventoryModule && typeof window.InventoryModule.openMultiple === 'function') {
-
-      window.InventoryModule.openMultiple(selected);
-
+    if (window.ARLocator) {
+      const batchList = selected.map(sel => {
+        const itemObj = sel.payload ? sel.payload : sel;
+        const isMold = itemObj.type === 'mold' || typeof itemObj.MoldID !== 'undefined';
+        const kind = isMold ? 'mold' : 'cutter';
+        const rawCode = isMold ? (itemObj.MoldCode || itemObj.MoldID) : (itemObj.CutterCode || itemObj.CutterID);
+        const code = String(rawCode).trim();
+        const normCode = code.replace(/\s+/g, '').toUpperCase();
+        return {
+          code: code,
+          kind: kind,
+          item: itemObj,
+          checked: false,
+          normCode: normCode,
+          normId: String(isMold ? itemObj.MoldID : itemObj.CutterID)
+        };
+      });
+      window.ARLocator.open('batch', batchList);
     } else {
-
-      alert('Chưa nạp module Inventory');
-
+      alert('AR Locator (AR探索) モジュールがロードされていません / Chưa nạp module AR Locator');
     }
 
   }

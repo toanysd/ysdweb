@@ -541,7 +541,7 @@
 
     this._photoCache = new Map(); // key -> { photos: [], ts: number }
 
-    this._cacheTtlMs = 24 * 60 * 60 * 1000; // TTL 30 phút
+    this._cacheTtlMs = 20 * 60 * 1000; // TTL 20 phút (Supabase Signed URL là 30 phút)
 
     // IMAGE CACHE (thumb/full)
 
@@ -917,7 +917,7 @@
 
         window.SwipeHistoryTrap.push('photoManager', () => this.close());
 
-        window.SwipeHistoryTrap.bindSwipe(overlay, () => this.close());
+        window.SwipeHistoryTrap.bindSwipe(overlay, () => this.close(), { followFinger: true });
 
       }
 
@@ -2209,7 +2209,7 @@
 
       window.SwipeHistoryTrap.push('pmLightbox', () => this._closeLightbox());
 
-      window.SwipeHistoryTrap.bindSwipe(lb, () => this._closeLightbox());
+      window.SwipeHistoryTrap.bindSwipe(lb, () => this._closeLightbox(), { followFinger: true });
 
     }
 
@@ -2246,13 +2246,35 @@
     var mt = document.getElementById('pmLbMeta');
 
     var DevPS = global.DevicePhotoStore;
+    var self = this;
 
+    // 1. Hiển thị ảnh tức thì bằng Signed URL 300s từ lưới (chống giật UI)
     var fullUrl = this._getFullUrl(p);
-
     if (img) {
-
       this._setImgElFromUrlCached(img, fullUrl, this._imgCacheNameFull);
+    }
 
+    // 2. Kéo nóng Signed URL 1800s để user an tâm zoom/copy link (Theo đúng Review Kế Hoạch)
+    var sp = p.storage_path || p.storagepath || p.storagePath;
+    if (sp && DevPS) {
+      var client = null;
+      try { client = DevPS._getClient(); } catch (e) { client = global.supabaseClient; }
+      var bucketId = DevPS.bucketId || 'mold-photos';
+      if (client) {
+        client.storage.from(bucketId).createSignedUrl(sp, 1800).then(function (res) {
+          if (res && res.data && res.data.signedUrl) {
+            // Cập nhật lại DB object local để url nút download cũng lấy 1800s
+            p.public_url = res.data.signedUrl;
+            p.publicurl = res.data.signedUrl;
+            p.publicUrl = res.data.signedUrl;
+
+            // Xoay thẻ img sang URL 1800s nếu panel này không bị bấm next/prev chuyển đi quá nhanh
+            if (self._lbIndex === idx && img) {
+              self._setImgElFromUrlCached(img, res.data.signedUrl, self._imgCacheNameFull);
+            }
+          }
+        }).catch(function () { });
+      }
     }
 
 
@@ -2469,7 +2491,7 @@
 
       window.SwipeHistoryTrap.push('pmInfoPanel', () => this._closeInfoPanel());
 
-      window.SwipeHistoryTrap.bindSwipe(panel, () => this._closeInfoPanel());
+      window.SwipeHistoryTrap.bindSwipe(panel, () => this._closeInfoPanel(), { followFinger: true });
 
     }
 
@@ -2599,7 +2621,7 @@
 
       window.SwipeHistoryTrap.push('pmStorageModal', () => this._closeStorageModal());
 
-      window.SwipeHistoryTrap.bindSwipe(modal, () => this._closeStorageModal());
+      window.SwipeHistoryTrap.bindSwipe(modal, () => this._closeStorageModal(), { followFinger: true });
 
     }
 
@@ -2643,7 +2665,7 @@
 
       window.SwipeHistoryTrap.push('pmTransferModal', () => this._closeTransferModal());
 
-      window.SwipeHistoryTrap.bindSwipe(modal, () => this._closeTransferModal());
+      window.SwipeHistoryTrap.bindSwipe(modal, () => this._closeTransferModal(), { followFinger: true });
 
     }
 
@@ -3092,70 +3114,6 @@
   PhotoManagerModule.prototype._bindAll = function () {
 
     var self = this;
-
-
-
-    /* Mobile Swipe Right to Close/Back */
-
-    var pmOverlay = document.getElementById('pmOverlay');
-
-    if (pmOverlay) {
-
-      var touchStartX = 0;
-
-      var touchStartY = 0;
-
-      pmOverlay.addEventListener('touchstart', function (e) {
-
-        if (e.touches.length === 1) {
-
-          touchStartX = e.touches[0].clientX;
-
-          touchStartY = e.touches[0].clientY;
-
-        }
-
-      }, { passive: true });
-
-      pmOverlay.addEventListener('touchmove', function (e) {
-
-        if (!touchStartX || !touchStartY || e.touches.length !== 1) return;
-
-        var deltaX = e.touches[0].clientX - touchStartX;
-
-        var deltaY = e.touches[0].clientY - touchStartY;
-
-
-
-        // Vuốt dứt khoát sang phải (>80px), không bị cuộn dọc (|Y| < 50px), và xuất phát gần lề (<80px)
-
-        if (deltaX > 80 && Math.abs(deltaY) < 50 && touchStartX < 80) {
-
-          // Tránh xung đột nếu các Modal con bên trong đang mở
-
-          var lb = document.getElementById('pmLightbox');
-
-          var tp = document.getElementById('pmTransferModal');
-
-          var cp = document.getElementById('pmConfirmDialog');
-
-          if (lb && !lb.classList.contains('pm-hidden')) return;
-
-          if (tp && !tp.classList.contains('pm-hidden')) return;
-
-          if (cp && !cp.classList.contains('pm-hidden')) return;
-
-
-
-          self.close();
-
-          touchStartX = 0; // Hủy để không trigger nhiều lần
-
-        }
-
-      }, { passive: true });
-
-    }
 
 
 
@@ -4451,7 +4409,7 @@
 
         window.caches.open(cname).then(function (cache) {
 
-          cache.match(url).then(function (hit) {
+          cache.match(url, { ignoreSearch: true }).then(function (hit) {
 
             if (hit) { hit.blob().then(resolve).catch(reject); return; }
 

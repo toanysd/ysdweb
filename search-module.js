@@ -352,6 +352,34 @@ class SearchModule {
 
     console.log('[SearchModule] Performing search:', query);
 
+    // [Tối ưu View State] Khi người dùng ấn Enter (hoặc bấm Search trên VirtualKeyboard) -> addToHistory = true
+    // Ép giao diện lập tức trở về trang Molds (main search page) dù đang ở TrayManager hay GlobalHistory
+    if (addToHistory && window.ViewManager && typeof window.ViewManager.switchView === 'function') {
+      if (window.ViewManager.currentView !== 'mold') {
+        window.ViewManager.switchView('mold');
+        
+        // Reset category về 'all' để đảm bảo kết quả hiển thị đúng
+        if (window.app) {
+          window.app.selectedCategory = 'all';
+          const catDropdown = document.getElementById('categoryDropdown');
+          if (catDropdown) catDropdown.value = 'all';
+        }
+
+        // Cập nhật giao diện Mobile Nav
+        document.querySelectorAll('.mobile-nav-btn').forEach(btn => btn.classList.remove('active'));
+        const moldBtn = document.getElementById('mobileNavMoldsBtn');
+        if (moldBtn) moldBtn.classList.add('active');
+        
+        // Tắt DetailPanel nếu đang mở
+        const detailPanel = document.getElementById('detailPanel');
+        if (detailPanel && detailPanel.classList.contains('open')) {
+            detailPanel.classList.remove('open', 'active');
+            const backdrop = document.getElementById('backdrop');
+            if (backdrop) backdrop.classList.remove('show');
+        }
+      }
+    }
+
     if (addToHistory && query) {
       this.addToHistory(query);
     }

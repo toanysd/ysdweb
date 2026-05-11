@@ -364,6 +364,46 @@
 
   // ============================================================
 
+  async function injectSignedUrls(client, bucketId, rows, ttl) {
+    if (!rows || !rows.length) return rows;
+    var thumbPaths = rows.map(function (r) { return r.thumb_storage_path || r.thumbstoragepath || r.thumbStoragePath || null; });
+    var mainPaths = rows.map(function (r) { return r.storage_path || r.storagepath || r.storagePath || null; });
+
+    // Collect all paths to sign
+    var allPathsToSign = [];
+    rows.forEach(function (r, i) {
+      if (thumbPaths[i]) allPathsToSign.push(thumbPaths[i]);
+      if (mainPaths[i]) allPathsToSign.push(mainPaths[i]);
+    });
+    var validPaths = Array.from(new Set(allPathsToSign.filter(Boolean)));
+    if (!validPaths.length) return rows;
+
+    try {
+      var res = await client.storage.from(bucketId).createSignedUrls(validPaths, ttl || 300);
+      if (!res || !res.data) return rows;
+      var signedMap = {};
+      res.data.forEach(function (item) {
+        if (item && item.path && item.signedUrl) signedMap[item.path] = item.signedUrl;
+      });
+      rows.forEach(function (r, i) {
+        var mainP = mainPaths[i];
+        var thumbP = thumbPaths[i] || mainP; // fallback if no thumb
+
+        if (mainP && signedMap[mainP]) {
+          r.public_url = signedMap[mainP];
+          r.publicurl = signedMap[mainP];
+          r.publicUrl = signedMap[mainP];
+        }
+        if (thumbP && signedMap[thumbP]) {
+          r.thumb_public_url = signedMap[thumbP];
+          r.thumbpublicurl = signedMap[thumbP];
+          r.thumbPublicUrl = signedMap[thumbP];
+        }
+      });
+    } catch (e) { }
+    return rows;
+  }
+
   class DevicePhotoStore {
     constructor() {
       this.initialized = false;
@@ -373,7 +413,8 @@
       this.auditTable = 'photo_audits';
 
       // Khi list ảnh: chỉ đi Storage để lấy size nếu thiếu file_size
-      this.persistFileSize = true;
+      // Tắt persistFileSize để tránh lỗi 400 Bad Request nếu DB chưa tạo cột file_size
+      this.persistFileSize = false;
 
       log(VERSION + ' created');
     }
@@ -463,6 +504,7 @@
             await attachFileSizes(this, rows, { persistToDb: this.persistFileSize });
           } catch (e) { }
         }
+        rows = await injectSignedUrls(client, this.bucketId, rows, 1800);
 
         return { data: rows };
       }
@@ -496,6 +538,7 @@
           await attachFileSizes(this, rows, { persistToDb: this.persistFileSize });
         } catch (e) { }
       }
+      rows = await injectSignedUrls(client, this.bucketId, rows, 1800);
 
       return rows;
     }
@@ -508,6 +551,12 @@
       });
     }
 
+    async getLatestActivePhotoForDevice(devicetype, deviceid) {
+      if (!devicetype || !deviceid) return null;
+      var rows = await this.listForDevice(String(devicetype).trim(), String(deviceid).trim(), { state: 'active', limit: 1 });
+      return (rows && rows.length > 0) ? rows[0] : null;
+    }
+
     // ─── THUMBNAIL ───────────────────────────────────────────────────────────
     async getThumbnailForDevice(devicetype, deviceid) {
       return this.getThumbnail(devicetype, deviceid);
@@ -516,7 +565,11 @@
     async getThumbnailUrl(devicetype, deviceid) {
       var row = await this.getThumbnail(devicetype, deviceid);
       if (!row) return null;
-      return row.thumb_public_url || row.thumbpublicurl || row.thumbPublicUrl || row.public_url || row.publicurl || row.publicUrl || null;
+      var sp = row.thumbstoragepath || row.thumbStoragePath || row.storagepath || row.storagePath;
+      if (!sp) return null;
+      var client = this._getClient();
+      var res = await client.storage.from(this.bucketId).createSignedUrl(sp, 1800);
+      return (res && res.data && res.data.signedUrl) ? res.data.signedUrl : null;
     }
 
     async getThumbnail(devicetype, deviceid) {
@@ -575,6 +628,10 @@
       if (setR.error) throw setR.error;
 
       var norm = setR.data ? normalizeRow(setR.data) : setR.data;
+      if (norm) {
+        var arr = await injectSignedUrls(this._getClient(), this.bucketId, [norm], 300);
+        norm = arr[0];
+      }
       emitEvent('device-photos:thumbnail-updated', { photo: norm });
       return norm;
     }
@@ -917,8 +974,7 @@
         if (upR.error) { err('Upload file error:', upR.error); throw upR.error; }
 
         // Original public url
-        var pubR = client.storage.from(this.bucketId).getPublicUrl(spath);
-        var pubUrl = (pubR && pubR.data && pubR.data.publicUrl) ? pubR.data.publicUrl : null;
+        var pubUrl = null;
 
         // Create + upload thumb (small JPEG)
         var thumbPath = null;
@@ -943,7 +999,7 @@
                 if (thUp && thUp.error) throw thUp.error;
 
                 var thPub = client.storage.from(this.bucketId).getPublicUrl(thumbPath);
-                thumbUrl = (thPub && thPub.data && thPub.data.publicUrl) ? thPub.data.publicUrl : null;
+                thumbUrl = null;
               }
             }
           } catch (e) {
@@ -975,6 +1031,12 @@
           thumb_width: thumbW,
           thumb_height: thumbH,
           thumb_bytes: thumbBytes,
+
+          // NEW: GPS SACT fields
+          gps_latitude: opts.gpsLatitude !== undefined ? opts.gpsLatitude : null,
+          gps_longitude: opts.gpsLongitude !== undefined ? opts.gpsLongitude : null,
+          gps_accuracy: opts.gpsAccuracy !== undefined ? opts.gpsAccuracy : null,
+          gps_mode: opts.gpsMode || 'standard',
 
           // manual
           manual_code: opts.manualcode || null,

@@ -159,23 +159,17 @@
 
         if (v === TEFLON_COATING_LABELS.completed) return TEFLON_STATUS_KEYS.completed;
 
-        if (v === '待') return TEFLON_STATUS_KEYS.pending;
-
-        if (v === '承') return TEFLON_STATUS_KEYS.approved;
-
-        if (v === '進') return TEFLON_STATUS_KEYS.processing;
-
-        if (v === '完') return TEFLON_STATUS_KEYS.completed;
-
         const lower = v.toLowerCase();
 
-        if (lower === 'pending') return TEFLON_STATUS_KEYS.pending;
+        if (lower.includes('承認待') || lower.includes('pending')) return TEFLON_STATUS_KEYS.pending;
+        if (lower.includes('承認済') || lower.includes('approved')) return TEFLON_STATUS_KEYS.approved;
+        if (lower.includes('加工中') || lower.includes('processing') || lower.includes('sent')) return TEFLON_STATUS_KEYS.processing;
+        if (lower.includes('加工済') || lower.includes('completed') || lower.includes('coated')) return TEFLON_STATUS_KEYS.completed;
 
-        if (lower === 'approved') return TEFLON_STATUS_KEYS.approved;
-
-        if (lower === 'processing' || lower === 'sent') return TEFLON_STATUS_KEYS.processing;
-
-        if (lower === 'completed' || lower === 'coated') return TEFLON_STATUS_KEYS.completed;
+        if (lower.includes('待')) return TEFLON_STATUS_KEYS.pending;
+        if (lower.includes('承')) return TEFLON_STATUS_KEYS.approved;
+        if (lower.includes('進') || lower.includes('発送')) return TEFLON_STATUS_KEYS.processing;
+        if (lower.includes('完') || (lower.includes('済') && !lower.includes('承認'))) return TEFLON_STATUS_KEYS.completed;
 
         return '';
 
@@ -186,16 +180,30 @@
     function logStatusToStatusKey(logStatus) {
         const v = normalizeText(logStatus).toLowerCase();
         if (!v) return '';
-        if (v === 'pending' || v === 'requested' || v === '待') return TEFLON_STATUS_KEYS.pending;
-        if (v === 'approved' || v === '承') return TEFLON_STATUS_KEYS.approved;
-        if (v === 'processing' || v === 'sent' || v === '進') return TEFLON_STATUS_KEYS.processing;
-        if (v === 'completed' || v === 'coated' || v === '完') return TEFLON_STATUS_KEYS.completed;
+
+        if (v.includes('承認待') || v.includes('requested') || v.includes('pending')) return TEFLON_STATUS_KEYS.pending;
+        if (v.includes('承認済') || v.includes('approved')) return TEFLON_STATUS_KEYS.approved;
+        if (v.includes('加工中') || v.includes('sent') || v.includes('processing')) return TEFLON_STATUS_KEYS.processing;
+        if (v.includes('加工済') || v.includes('completed') || v.includes('coated') || v.includes('received')) return TEFLON_STATUS_KEYS.completed;
+
+        // Fallbacks for truncated MS Access texts
+        if (v.includes('待')) return TEFLON_STATUS_KEYS.pending;
+        if (v.includes('承')) return TEFLON_STATUS_KEYS.approved;
+        if (v.includes('進') || v.includes('発送')) return TEFLON_STATUS_KEYS.processing;
+        if (v.includes('完') || (v.includes('済') && !v.includes('承認'))) return TEFLON_STATUS_KEYS.completed;
+
         return '';
     }
 
 
 
     function getTeflonStatusKey(row, hasLog) {
+
+        // --- Data Integrity Patch: Trust Dates over Strings ---
+        // MS Access updates might fill 'ReceivedDate' but users frequently forget to change 'TeflonStatus' text.
+        if (row.ReceivedDate && parseFlexibleDate(row.ReceivedDate)) {
+            return TEFLON_STATUS_KEYS.completed;
+        }
 
         const coating = normalizeText(row.TeflonCoating || row.TeflonStatus);
 
@@ -711,25 +719,32 @@
 
 
 
-                const parseDate = (item) => parseFlexibleDate(item.UpdatedDate || item.ReceivedDate || item.ExpectedDate || item.SentDate || item.RequestedDate || item.CreatedDate || '1970-01-01');
-                const logDate = parseDate(log);
-                const prevDate = parseDate(prev);
+                // --- Fix: Rely on TeflonLogID for Chronological Order ---
+                // Do not rely on 'ExpectedDate' because future expected dates can arbitrarily override newer logs 
+                // when things are completed earlier than expected.
+                const parseId = (id) => {
+                    const str = String(id || '0');
+                    if (str.startsWith('TL')) return Number.MAX_SAFE_INTEGER - 10000000 + (parseInt(str.replace('TL', ''), 10) || 0);
+                    return parseInt(str, 10) || 0;
+                };
 
-                const ldTime = logDate ? logDate.getTime() : 0;
-                const pdTime = prevDate ? prevDate.getTime() : 0;
+                const logId = parseId(log.TeflonLogID);
+                const prevId = parseId(prev.TeflonLogID);
 
-                if (ldTime > pdTime) {
+                if (logId > prevId) {
                     moldLogMap.set(moldId, log);
-                } else if (ldTime === pdTime) {
-                    // Fallback to ID parse if dates are exactly the same
-                    const parseId = (id) => {
-                        const str = String(id || '0');
-                        if (str.startsWith('TL')) return Number.MAX_SAFE_INTEGER - 10000000 + (parseInt(str.replace('TL', ''), 10) || 0);
-                        return parseInt(str, 10) || 0;
-                    };
-                    const logId = parseId(log.TeflonLogID);
-                    const prevId = parseId(prev.TeflonLogID);
-                    if (logId > prevId) moldLogMap.set(moldId, log);
+                } else if (logId === prevId && logId === 0) {
+                    // Fallback to Dates ONLY if there are no valid IDs
+                    const parseDate = (item) => parseFlexibleDate(item.UpdatedAt || item.UpdatedDate || item.CreatedDate || item.ReceivedDate || item.SentDate || item.RequestedDate || '1970-01-01');
+                    const logDate = parseDate(log);
+                    const prevDate = parseDate(prev);
+
+                    const ldTime = logDate ? logDate.getTime() : 0;
+                    const pdTime = prevDate ? prevDate.getTime() : 0;
+
+                    if (ldTime > pdTime) {
+                        moldLogMap.set(moldId, log);
+                    }
                 }
             });
 
@@ -745,42 +760,27 @@
 
                 const moldName = mold ? (mold.MoldName || mold.MoldCode || `ID:${moldId}`) : `ID:${moldId}`;
 
-
-
                 const statusKey = getTeflonStatusKey({
-
                     TeflonStatus: log.TeflonStatus,
-
                     TeflonCoating: log.CoatingType || (mold ? mold.TeflonCoating : ''),
-
-                    CoatingType: log.CoatingType
-
+                    CoatingType: log.CoatingType,
+                    ReceivedDate: log.ReceivedDate,
+                    SentDate: log.SentDate
                 }, true);
 
 
 
                 rows.push({
-
                     MoldID: String(moldId),
-
                     MoldName: moldName,
-
                     TeflonStatusKey: statusKey,
-
                     TeflonStatusLabel: statusKeyToCoatingLabel(statusKey) || log.TeflonStatus || '',
-
                     RequestedByName: getEmployeeName(log.RequestedBy, employeesArr),
-
                     RequestedDate: log.RequestedDate || '',
-
                     SentByName: getEmployeeName(log.SentBy, employeesArr),
-
                     SentDate: log.SentDate || '', ExpectedDate: log.ExpectedDate || '',
-
                     ReceivedDate: log.ReceivedDate || '',
-
                     TeflonNotes: log.TeflonNotes || ''
-
                 });
 
             });

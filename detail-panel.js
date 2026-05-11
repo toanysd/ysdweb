@@ -1,4 +1,4 @@
-// v9.1.5-3
+// v10.2.6-CutterOrangeTheme
 /* ============================================================================
 
 
@@ -696,10 +696,14 @@ Created: 2026-02-04
 
 
 
-        window.SwipeHistoryTrap.bindSwipe(this.panel, () => this.close());
-
-
-
+        // [v9.1.19] Sử dụng global SwipeHistoryTrap với tính năng followFinger mới
+        window.SwipeHistoryTrap.bindSwipe(this.panel, () => {
+          if (this.isPreviewOpen && this.isPreviewOpen()) {
+            this.closePreview();
+          } else {
+            this.close();
+          }
+        }, { followFinger: true });
       }
 
 
@@ -881,6 +885,26 @@ Created: 2026-02-04
 
 
             <span class="tab-label-vi">Ảnh</span>
+
+
+
+          </button>
+
+
+
+          <button class="detail-tab" data-tab="trayphotos" type="button">
+
+
+
+            <i class="fas fa-box"></i>
+
+
+
+            <span class="tab-label-ja">トレイ写真</span>
+
+
+
+            <span class="tab-label-vi">Ảnh khay</span>
 
 
 
@@ -1091,6 +1115,10 @@ Created: 2026-02-04
 
 
           <div class="detail-tab-content" data-tab-content="photos"></div>
+
+
+
+          <div class="detail-tab-content" data-tab-content="trayphotos"></div>
 
 
 
@@ -1591,21 +1619,13 @@ Created: 2026-02-04
 
 
     getTabModule(tabKey) {
-
-
-
       this.initModules();
-
-
-
       const k = String(tabKey || '').toLowerCase();
-
-
-
-      return (this._modules && this._modules[k]) ? this._modules[k] : null;
-
-
-
+      if (!this._modules) this._modules = {};
+      if (!this._modules[k] && window.DetailPanelTabModules && window.DetailPanelTabModules[k]) {
+        this._modules[k] = window.DetailPanelTabModules[k];
+      }
+      return this._modules[k] ? this._modules[k] : null;
     }
 
 
@@ -1659,185 +1679,6 @@ Created: 2026-02-04
 
 
     bindEvents() {
-
-
-
-      // Mobile Swipe-to-Close Gesture (Tối ưu mượt mà và chống giật)
-
-      let dpTouchStartX = 0;
-
-      let dpTouchStartY = 0;
-
-      let dpCurrentX = 0;
-
-      let isSwipingPanel = false;
-
-
-
-      this.panel.addEventListener('touchstart', (e) => {
-
-        // Hủy thao tác vuốt Panel nếu đang mở Modal đè lên (Global Modal Swipe)
-
-        if (window._modalClosingSwipe || window._isGlobalModalSwipe || e.target.closest('.app-modal, .modal, .mcs-qv-backdrop, .lightgallery')) return;
-
-
-
-        if (e.touches.length === 1) {
-
-          dpTouchStartX = e.touches[0].clientX;
-
-          dpTouchStartY = e.touches[0].clientY;
-
-          dpCurrentX = dpTouchStartX;
-
-
-
-          // Kiểm tra xem User có chạm nhầm vào bảng scroll ngang không
-
-          const isScrollable = e.target.closest('table, .table-scroll-container, .table-wrapper, .dp-tab-bar, .dp-actions-grid');
-
-          const isPreview = this.isPreviewOpen && this.isPreviewOpen();
-
-
-
-          // Tránh việc vuốt chéo. Chỉ bắt đầu vuốt từ cạnh trái (< 50px của Panel)
-
-          if (!isScrollable && (dpTouchStartX < 50 || isPreview)) {
-
-            isSwipingPanel = true;
-
-            // Tắt transition tự động để trượt Panel bám theo ngón tay một cách mượt mà
-
-            this.panel.style.transition = 'none';
-
-          }
-
-        }
-
-      }, { passive: true });
-
-
-
-      this.panel.addEventListener('touchmove', (e) => {
-
-        if (!isSwipingPanel || !dpTouchStartX || !dpTouchStartY || e.touches.length !== 1) return;
-
-        if (window._modalClosingSwipe || window._isGlobalModalSwipe) {
-
-          isSwipingPanel = false;
-
-          return;
-
-        }
-
-
-
-        dpCurrentX = e.touches[0].clientX;
-
-        const currentY = e.touches[0].clientY;
-
-        const dx = dpCurrentX - dpTouchStartX;
-
-        const dy = currentY - dpTouchStartY;
-
-
-
-        // Hủy thao tác vuốt đóng nếu vuốt chéo/dọc
-
-        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 15) {
-
-          isSwipingPanel = false;
-
-          this.panel.style.transform = '';
-
-          this.panel.style.transition = '';
-
-          return;
-
-        }
-
-
-
-        // Vuốt sang phải (dx > 0)
-
-        if (dx > 0) {
-
-          // Báo hiệu khóa chức năng vuốt sidebar
-
-          window._panelClosingSwipe = true;
-
-
-
-          // Cập nhật vị trí transform chạy theo tay người dùng
-
-          const targetEl = (this.isPreviewOpen && this.isPreviewOpen()) ? document.getElementById('dpPreviewModal') : this.panel;
-
-          if (targetEl) {
-
-            targetEl.style.transform = `translateX(${dx}px)`;
-
-          }
-
-        }
-
-      }, { passive: true });
-
-
-
-      this.panel.addEventListener('touchend', (e) => {
-
-        if (!isSwipingPanel) return;
-
-        isSwipingPanel = false;
-
-
-
-        setTimeout(() => { window._panelClosingSwipe = false; }, 100);
-
-
-
-        const targetEl = (this.isPreviewOpen && this.isPreviewOpen()) ? document.getElementById('dpPreviewModal') : this.panel;
-
-        if (!targetEl) return;
-
-
-
-        targetEl.style.transition = ''; // Bật lại hệ thống Transition tự động CSS
-
-        targetEl.style.transform = '';  // Trả về CSS quản lý Class
-
-
-
-        const dx = dpCurrentX - dpTouchStartX;
-
-
-
-        // Nếu kéo đủ sâu (ví dụ > 80px) thì chốt gọi hàm đóng
-
-        if (dx > 80) {
-
-          if (this.isPreviewOpen && this.isPreviewOpen()) {
-
-            this.closePreview();
-
-          } else {
-
-            this.close();
-
-          }
-
-        }
-
-        dpTouchStartX = 0;
-
-      }, { passive: true });
-
-
-
-
-
-
-
       this.panel.addEventListener('click', (e) => {
 
 
@@ -2824,7 +2665,7 @@ Created: 2026-02-04
 
 
 
-              this.notify('Chưa có ảnh để xóa', 'info');
+              this.notify('削除する写真がありません (Chưa có ảnh để xóa)', 'info');
 
 
 
@@ -3033,77 +2874,26 @@ Created: 2026-02-04
 
 
           if (key === 'open-full') {
-
-
-
             try {
-
-
-
               const p = this._preview || {};
-
-
-
               const it = p.item;
-
-
-
               const tp = p.itemType;
-
-
-
-              this.closePreview();
-
-
-
+              this.closePreview(true);
               if (it) this.open(it, tp, { fromPanelLink: true });
-
-
-
             } catch (err) { }
-
-
-
             return;
-
-
-
           }
 
 
 
           if (key === 'open-full-mold') {
-
-
-
             try {
-
-
-
               const p = this._preview || {};
-
-
-
               const m = p.centerMold;
-
-
-
-              this.closePreview();
-
-
-
+              this.closePreview(true);
               if (m) this.open(m, 'mold', { fromPanelLink: true });
-
-
-
             } catch (err) { }
-
-
-
             return;
-
-
-
           }
 
 
@@ -3297,33 +3087,12 @@ Created: 2026-02-04
 
 
           if (key === 'open-full') {
-
-
-
             const p = this._preview || {};
-
-
-
             const it = p.item;
-
-
-
             const tp = p.itemType;
-
-
-
-            this.closePreview();
-
-
-
+            this.closePreview(true);
             if (it) this.open(it, tp, { fromPanelLink: true });
-
-
-
             return;
-
-
-
           }
 
 
@@ -3333,29 +3102,11 @@ Created: 2026-02-04
 
 
           if (key === 'open-full-mold') {
-
-
-
             const p = this._preview || {};
-
-
-
             const m = p.centerMold;
-
-
-
-            this.closePreview();
-
-
-
+            this.closePreview(true);
             if (m) this.open(m, 'mold', { fromPanelLink: true });
-
-
-
             return;
-
-
-
           }
 
 
@@ -3433,17 +3184,32 @@ Created: 2026-02-04
 
 
       document.addEventListener('data-manager-updated', () => {
+        this.loadDataReferences();
+        if (this.panel.classList.contains('open') && this.currentItem) this.refreshCurrentTab();
+      });
 
+      // Vá lỗi event name lệch pha với data-manager.js
+      document.addEventListener('data-manager:updated', () => {
+        this.loadDataReferences();
+        if (this.panel.classList.contains('open') && this.currentItem) this.refreshCurrentTab();
+      });
 
+      document.addEventListener('mcs-data-sync', (e) => {
+        if (!this.panel.classList.contains('open') || !this.currentItem) return;
+        var detail = e.detail;
+        if (!detail || !detail.idValue) return;
+        var myId = this.currentItem.MoldID || this.currentItem.CutterID;
+        if (String(myId) !== String(detail.idValue)) return;
+
+        var inner = this.panel.querySelector('.detail-panel-inner');
+        if (inner) {
+          var oldBg = inner.style.background || '';
+          inner.style.background = '#e0f2fe';
+          setTimeout(() => { if (inner) inner.style.background = oldBg; }, 400);
+        }
 
         this.loadDataReferences();
-
-
-
-        if (this.panel.classList.contains('open') && this.currentItem) this.refreshCurrentTab();
-
-
-
+        this.refreshCurrentTab();
       });
 
 
@@ -3830,6 +3596,7 @@ Created: 2026-02-04
 
 
       this.currentItemType = this.normalizeItemType(item, itemType);
+        if (this.panel) this.panel.classList.toggle('is-cutter', this.currentItemType === 'cutter');
 
 
 
@@ -3917,6 +3684,29 @@ Created: 2026-02-04
 
 
 
+      // ===== URL STATE SYNC (SPA Routing) =====
+      try {
+        let q = '';
+        console.log(`[URL SYNC] open() called. currentItemType: ${this.currentItemType}`);
+        if (this.currentItemType === 'mold') {
+          const mId = this.currentItem.MoldID || this.currentItem.MoldCode;
+          if (mId) q = '?q=M' + mId;
+        } else if (this.currentItemType === 'cutter') {
+          const cId = this.currentItem.CutterID || this.currentItem.CutterCode || this.currentItem.CutterNo;
+          console.log(`[URL SYNC] Resolving Cutter ID for URL: CutterID=${this.currentItem.CutterID}, CutterCode=${this.currentItem.CutterCode}, CutterNo=${this.currentItem.CutterNo} -> cId=${cId}`);
+          if (cId) q = '?q=C' + cId;
+        }
+        console.log(`[URL SYNC] open() attempting replaceState to: "${q}"`);
+        if (q) {
+            window.history.replaceState({}, document.title, q);
+            console.log(`[URL SYNC] open() replaceState SUCCESS. New URL:`, window.location.href);
+        } else {
+            console.log(`[URL SYNC] open() skipped replaceState because q is empty`);
+        }
+      } catch (e) { console.error('[URL SYNC] open() URL Sync error:', e); }
+
+
+
       this.panel.classList.add('open');
 
 
@@ -3929,6 +3719,7 @@ Created: 2026-02-04
 
 
 
+      document.body.classList.toggle('dp-cutter-active', this.currentItemType === 'cutter');
       document.body.style.overflow = 'hidden';
 
 
@@ -3950,6 +3741,22 @@ Created: 2026-02-04
 
 
       if (window.SwipeHistoryTrap) window.SwipeHistoryTrap.remove('detailPanel');
+
+
+
+      // ===== URL STATE SYNC CLEANUP =====
+      // Chỉ xóa URL khi đóng panel thực sự (silent=false), KHÔNG xóa khi khởi tạo (silent=true)
+      if (!silent) {
+        try {
+          const cleanUrl = new URL(window.location.href);
+          if (cleanUrl.searchParams.has('q')) {
+            cleanUrl.searchParams.delete('q');
+            window.history.replaceState({}, document.title, cleanUrl.toString());
+          }
+        } catch (e) { console.warn('URL Cleanup error:', e); }
+      }
+
+
 
       this.panel.classList.remove('open');
 
@@ -3975,7 +3782,7 @@ Created: 2026-02-04
 
 
 
-      this.closePreview();
+      this.closePreview(silent);
 
 
 
@@ -3983,6 +3790,7 @@ Created: 2026-02-04
 
 
 
+      document.body.classList.remove('dp-cutter-active');
       document.body.style.overflow = '';
 
 
@@ -4118,9 +3926,26 @@ Created: 2026-02-04
 
 
 
+      // Cập nhật nhãn Tab Ảnh theo thiết bị (Mold / Cutter / Tray)
+      const photoTabBtn = this.panel.querySelector('.detail-tab[data-tab="photos"]');
+      if (photoTabBtn) {
+        const jaLabel = photoTabBtn.querySelector('.tab-label-ja');
+        const viLabel = photoTabBtn.querySelector('.tab-label-vi');
+        if (jaLabel && viLabel) {
+          if (this.currentItemType === 'cutter') {
+            jaLabel.textContent = '刃具写真';
+            viLabel.textContent = 'Ảnh dao';
+          } else if (this.currentItemType === 'tray') {
+            jaLabel.textContent = '本体写真'; // Ảnh chính của khay
+            viLabel.textContent = 'Ảnh thiết bị';
+          } else {
+            jaLabel.textContent = '金型写真';
+            viLabel.textContent = 'Ảnh khuôn';
+          }
+        }
+      }
+
       this.updateBackButtonState();
-
-
 
     }
 
@@ -4154,9 +3979,26 @@ Created: 2026-02-04
 
 
 
+      // Cập nhật nhãn Tab Ảnh theo thiết bị (Mold / Cutter / Tray)
+      const photoTabBtn = this.panel.querySelector('.detail-tab[data-tab="photos"]');
+      if (photoTabBtn) {
+        const jaLabel = photoTabBtn.querySelector('.tab-label-ja');
+        const viLabel = photoTabBtn.querySelector('.tab-label-vi');
+        if (jaLabel && viLabel) {
+          if (this.currentItemType === 'cutter') {
+            jaLabel.textContent = '刃具写真';
+            viLabel.textContent = 'Ảnh dao';
+          } else if (this.currentItemType === 'tray') {
+            jaLabel.textContent = '本体写真'; // Ảnh chính của khay
+            viLabel.textContent = 'Ảnh thiết bị';
+          } else {
+            jaLabel.textContent = '金型写真';
+            viLabel.textContent = 'Ảnh khuôn';
+          }
+        }
+      }
+
       this.updateBackButtonState();
-
-
 
     }
 
@@ -4567,10 +4409,22 @@ Created: 2026-02-04
 
 
         this._preview = { open: true, item: full, itemType: t, centerMold };
+        
 
 
 
         if (window.SwipeHistoryTrap) window.SwipeHistoryTrap.push('detailPreview', () => this.closePreview());
+
+        try {
+          let q = '';
+          if (t === 'mold') q = '?q=M' + (full.MoldID || full.MoldCode || '');
+          else if (t === 'cutter') q = '?q=C' + (full.CutterID || full.CutterCode || full.CutterNo || '');
+          console.log(`[URL SYNC] openPreview attempting replaceState to: "${q}"`);
+          if (q && q.length > 4) {
+            window.history.replaceState({}, document.title, q);
+            console.log(`[URL SYNC] openPreview replaceState SUCCESS. New URL:`, window.location.href);
+          }
+        } catch (e) { console.error('[URL SYNC] openPreview error:', e); }
 
 
 
@@ -4602,11 +4456,23 @@ Created: 2026-02-04
 
 
 
-    closePreview() {
+    closePreview(skipUrlRestore = false) {
+      if (window.SwipeHistoryTrap) window.SwipeHistoryTrap.remove('detailPreview', skipUrlRestore);
 
-
-
-      if (window.SwipeHistoryTrap) window.SwipeHistoryTrap.remove('detailPreview');
+      console.log(`[URL SYNC] closePreview called. skipUrlRestore: ${skipUrlRestore}`);
+      if (!skipUrlRestore) {
+        try {
+          let q = '';
+          if (this.currentItemType === 'mold' && this.currentItem) q = '?q=M' + (this.currentItem.MoldID || this.currentItem.MoldCode || '');
+          else if (this.currentItemType === 'cutter' && this.currentItem) q = '?q=C' + (this.currentItem.CutterID || this.currentItem.CutterCode || this.currentItem.CutterNo || '');
+          console.log(`[URL SYNC] closePreview attempting replaceState to: "${q}"`);
+          if (q && q.length > 4) window.history.replaceState({}, document.title, q);
+          else window.history.replaceState({}, document.title, window.location.pathname);
+          console.log(`[URL SYNC] closePreview replaceState SUCCESS. New URL:`, window.location.href);
+        } catch (e) { console.error('[URL SYNC] closePreview error:', e); }
+      } else {
+        console.log(`[URL SYNC] closePreview skipping URL restore due to skipUrlRestore=true`);
+      }
 
 
 
@@ -4811,149 +4677,71 @@ Created: 2026-02-04
 
 
     buildPreviewCenterHtml(item, itemType, centerMoldForCutter) {
-
-
-
       try {
-
-
-
         if (!item) return '<p class="no-data">No preview item</p>';
-
-
-
-
-
-
-
         const t = String(itemType || '').toLowerCase();
-
-
-
-        let html = '';
-
-
-
-
-
-
-
-        // Full giống cột giữa
-
-
-
-        html += this.renderPreviewHero(item, t);
-
-
-
-        html += this.renderBasicInfoSection(item, t);
-
-
-
-        html += this.renderProductInfoSection(item, t);
-
-
-
-        html += this.renderTechnicalInfoSection(item, t);
-
-
-
-        html += this.renderStatusNotesSection(item, t);
-
-
-
-        html += this.renderAdditionalDataSection(item, t);
-
-
-
-
-
-
+        
+        let html = `
+          <div class="dp-dash2-layout" style="padding-top: 8px;">
+            <div class="dp-dash2-masonry">
+              <!-- Cột 1: Ảnh + Lưu trữ -->
+              <div class="dp-d2-col">
+                 <div class="dp-d2-card pt-0">
+                    <div class="dp-d2-card-body">
+                       ${this.renderDesktopPhotoPreview(item)}
+                    </div>
+                 </div>
+                 <div class="dp-d2-card dp-card-storage-cutter">
+                    <div class="dp-d2-card-head color-teal"><i class="fas fa-map-marker-alt"></i> 保管・ステータス (Lưu trữ & Trạng thái)</div>
+                    <div class="dp-d2-card-body">
+                       ${this.renderLocationSection(item, t)}
+                       ${this.renderStatusNotesSection(item, t)}
+                    </div>
+                 </div>
+              </div>
+              
+              <!-- Cột 2: Tổng quan -->
+              <div class="dp-d2-col">
+                 <div class="dp-d2-card">
+                    <div class="dp-d2-card-head color-indigo"><i class="fas fa-clipboard-list"></i> 概要 (Tổng quan)</div>
+                    <div class="dp-d2-card-body">
+                       ${this.renderOverviewSection(item, t)}
+                    </div>
+                 </div>
+        `;
 
         if (t === 'cutter' && centerMoldForCutter) {
-
-
-
-          html += `
-
-
-
-            <div class="modal-section">
-
-
-
-              <div class="section-header">
-
-
-
-                <i class="fas fa-cube"></i>
-
-
-
-                <span>Khuôn trung tâm</span>
-
-
-
-              </div>
-
-
-
-              <div class="info-message">
-
-
-
-                Dao cắt có thể dùng chung; khuôn trung tâm chỉ tham khảo: <b>${this.safeText(centerMoldForCutter.MoldCode || centerMoldForCutter.MoldID)}</b>
-
-
-
-                <button class="btn-action" style="margin-left:8px" type="button" data-preview-action="open-full-mold">Mở khuôn</button>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-          `;
-
-
-
+            html += `
+                 <div class="dp-d2-card">
+                    <div class="dp-d2-card-head color-amber"><i class="fas fa-cube"></i> 中心金型 (Khuôn trung tâm - Chỉ tham khảo)</div>
+                    <div class="dp-d2-card-body dp-d2-card-body--pad" style="font-size:13px; line-height:1.5; color:#334155;">
+                       <p style="margin:0 0 8px 0;">
+                         <strong>【JP】</strong> 中心金型は初期設計のベースとなった金型です。抜型はこの金型に合わせて設計されているため、共用金型の場合は参考情報として参照できます。実際の仕様は使用する金型により異なる場合があります。<br/>
+                         <strong style="color:#64748b;">【VN】</strong> <span style="color:#64748b;">Khuôn trung tâm là khuôn thiết kế ban đầu, dao cắt được thiết kế theo khuôn này nên đối với các khuôn dùng chung khác có thể lấy thông tin để tham khảo. Thực tế sẽ có thay đổi tùy theo khuôn sử dụng.</span>
+                       </p>
+                       <p style="margin:0; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                         現在リンクされている中心金型 (Khuôn trung tâm hiện đang liên kết): <b style="color:#0f172a; font-size:14px; margin-left:4px;">${this.safeText(centerMoldForCutter.MoldCode || centerMoldForCutter.MoldID)}</b>
+                       </p>
+                       <div style="margin-top: 12px;">
+                           <button class="btn-action" type="button" data-preview-action="open-full-mold"><i class="fas fa-external-link-alt"></i> この金型を開く (Mở xem Khuôn này)</button>
+                       </div>
+                    </div>
+                 </div>
+            `;
         }
 
-
-
-
-
-
+        html += `
+              </div>
+            </div>
+          </div>
+        `;
 
         return html;
 
-
-
       } catch (e) {
-
-
-
         return '<p class="no-data">Preview render error</p>';
-
-
-
       }
-
-
-
     }
-
-
-
-
-
-
-
     renderPreviewOverlay() {
 
 
@@ -5222,7 +5010,72 @@ Created: 2026-02-04
 
 
 
-          modal.addEventListener('click', (e) => e.stopPropagation());
+          modal.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const btnUpload = e.target.closest('[data-dp-photo-upload="1"]');
+            if (btnUpload) {
+                e.preventDefault();
+                const dtype = btnUpload.dataset.dpDeviceType;
+                const did = btnUpload.dataset.dpDeviceId;
+                if (!window.PhotoUpload || typeof window.PhotoUpload.open !== 'function') return this.notify('Chưa load module upload ảnh', 'error');
+                window.PhotoUpload.open({
+                    mode: 'device',
+                    deviceType: dtype,
+                    deviceId: did,
+                    deviceCode: did,
+                    deviceDims: '',
+                    onDone: () => { try { this.hydrateDesktopPhotoPreviewFromSupabase(); } catch (e) { } }
+                });
+                return;
+            }
+            const btnDownload = e.target.closest('[data-dp-photo-download="1"]');
+            if (btnDownload) {
+                e.preventDefault();
+                const img = modal.querySelector('img[data-dp-thumb-img="1"]');
+                let fullUrl = img ? img.dataset.dpFullUrl : '';
+                if (!fullUrl && window.DevicePhotoStore) {
+                    const dtype = img ? img.dataset.dpDeviceType : '';
+                    const did = img ? img.dataset.dpDeviceId : '';
+                    if (dtype && did) {
+                        const row = await window.DevicePhotoStore.getLatestActivePhotoForDevice(dtype, did);
+                        if (row) fullUrl = row.publicurl || row.publicUrl || row.public_url || '';
+                    }
+                }
+                if (!fullUrl) return this.notify('Không tìm thấy ảnh gốc để tải', 'warning');
+                const a = document.createElement('a');
+                a.href = fullUrl;
+                a.download = 'Photo.jpg';
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                return;
+            }
+            const btnTrash = e.target.closest('[data-dp-photo-trash="1"]');
+            if (btnTrash) {
+                e.preventDefault();
+                const img = modal.querySelector('img[data-dp-thumb-img="1"]');
+                let photoId = img ? img.dataset.dpPhotoId : '';
+                if (!photoId && window.DevicePhotoStore) {
+                    const dtype = img ? img.dataset.dpDeviceType : '';
+                    const did = img ? img.dataset.dpDeviceId : '';
+                    if (dtype && did) {
+                        const row = await window.DevicePhotoStore.getLatestActivePhotoForDevice(dtype, did);
+                        if (row) photoId = row.id;
+                    }
+                }
+                if (!photoId) return this.notify('Không thể xác định ID ảnh để xóa', 'error');
+                if (!confirm('Bạn có chắc chắn muốn đưa ảnh này vào thùng rác?')) return;
+                try {
+                    await window.DevicePhotoStore.moveToTrash(photoId);
+                    this.notify('Đã xóa ảnh (chuyển vào thùng rác)', 'success');
+                    this.hydrateDesktopPhotoPreviewFromSupabase();
+                } catch (err) {
+                    this.notify('Lỗi khi xóa ảnh: ' + err.message, 'error');
+                }
+                return;
+            }
+          });
 
 
 
@@ -5239,6 +5092,7 @@ Created: 2026-02-04
 
 
         modal.classList.toggle('dp-preview-drawer', !isInfoTab);
+          modal.classList.toggle('is-cutter', this._preview.itemType === 'cutter');
 
 
 
@@ -5582,103 +5436,111 @@ Created: 2026-02-04
 
 
 
-          const heroThumb = modal.querySelector('img[data-dp-preview-hero-thumb="1"]');
+          const heroThumbs = modal.querySelectorAll('img[data-dp-preview-hero-thumb="1"]');
 
 
 
-          if (heroThumb) heroThumb.dataset.dpHeroThumbState = "loading";
+          for (const heroThumb of heroThumbs) {
 
 
 
-          if (heroThumb && window.DevicePhotoStore && typeof window.DevicePhotoStore.getThumbnailUrl === 'function') {
+            heroThumb.dataset.dpHeroThumbState = "loading";
 
 
 
-            const dtype = String(heroThumb.dataset.dpDeviceType || '').toLowerCase();
+            if (window.DevicePhotoStore && typeof window.DevicePhotoStore.getThumbnailUrl === 'function') {
 
 
 
-            const did = String(heroThumb.dataset.dpDeviceId || '').trim();
+              const dtype = String(heroThumb.dataset.dpDeviceType || '').toLowerCase();
 
 
 
+              const did = String(heroThumb.dataset.dpDeviceId || '').trim();
 
 
 
 
-            // Placeholder trong lúc chờ load (tránh icon vỡ)
 
 
 
-            heroThumb.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+              // Placeholder trong lúc chờ load (tránh icon vỡ)
 
 
 
+              heroThumb.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 
 
 
-            // Nếu store có ensureReady thì gọi
 
 
 
-            try { if (typeof window.DevicePhotoStore.ensureReady === 'function') window.DevicePhotoStore.ensureReady(); } catch (e) { }
+              // Nếu store có ensureReady thì gọi
 
 
 
+              try { if (typeof window.DevicePhotoStore.ensureReady === 'function') window.DevicePhotoStore.ensureReady(); } catch (e) { }
 
 
 
 
-            if (dtype && did) {
 
 
 
-              window.DevicePhotoStore.getThumbnailUrl(dtype, did)
+              if (dtype && did) {
 
 
 
-                .then(url => {
+                window.DevicePhotoStore.getThumbnailUrl(dtype, did)
 
 
 
-                  if (url) {
+                  .then(url => {
 
 
 
-                    heroThumb.src = url;
+                    if (url) {
 
 
 
-                    heroThumb.dataset.dpHeroThumbState = "ready";
+                      heroThumb.src = url;
 
 
 
-                  } else {
+                      heroThumb.dataset.dpHeroThumbState = "ready";
 
 
 
-                    heroThumb.dataset.dpHeroThumbState = "empty";
+                    } else {
 
 
 
-                  }
+                      heroThumb.dataset.dpHeroThumbState = "empty";
 
 
 
-                })
+                    }
 
 
 
-                .catch(() => {
+                  })
 
 
 
-                  try { heroThumb.dataset.dpHeroThumbState = "empty"; } catch (e) { }
+                  .catch(() => {
 
 
 
-                });
+                    try { heroThumb.dataset.dpHeroThumbState = "empty"; } catch (e) { }
+
+
+
+                  });
+
+
+
+              }
 
 
 
@@ -5716,7 +5578,7 @@ Created: 2026-02-04
 
         }
 
-
+        setTimeout(() => { try { this.hydrateDesktopPhotoPreviewFromSupabase(); } catch(e) {} }, 50);
 
       } catch (e) {
 
@@ -5927,6 +5789,7 @@ Created: 2026-02-04
 
 
         case 'photos': html = this.renderPhotosTab(); break;
+        case 'trayphotos': html = this.renderTrayPhotosTab(); break;
 
 
 
@@ -6159,6 +6022,8 @@ Created: 2026-02-04
 
 
         this.bindPhotosTab(container);
+      } else if (tabName === 'trayphotos') {
+        this.bindTrayPhotosTab(container);
 
 
 
@@ -8101,6 +7966,10 @@ Created: 2026-02-04
 
 
 
+
+
+
+
         for (const d of directIds) directSet.add(d);
 
 
@@ -8717,7 +8586,13 @@ Created: 2026-02-04
 
 
 
-            window.QuickUpdateModule.openModal(mapKeys[mode] || mode, this.currentItem);
+            window.QuickUpdateModule.openModal(mapKeys[mode] || mode, this.currentItem, {
+              onSuccess: () => {
+                if (window.App && typeof window.App.filterAndRender === 'function') {
+                  window.App.filterAndRender();
+                }
+              }
+            });
 
 
 
@@ -8881,11 +8756,17 @@ Created: 2026-02-04
 
           } else {
 
+
+
             console.warn('DetailPrintModule không tồn tại, sẽ call quick-action generic event.');
 
           }
 
+
+
         } catch (e) {
+
+
 
           console.error("DetailPrintModule Lỗi", e);
 
@@ -11291,11 +11172,19 @@ Created: 2026-02-04
 
             <div class="dp-action-btn-texts">
 
+
+
               <span class="dp-action-label-ja">移動・返却</span>
+
+
 
               <span class="sub dp-action-label-vi">Di chuyển / Trả</span>
 
+
+
             </div>
+
+
 
           </button>
 
@@ -11307,11 +11196,19 @@ Created: 2026-02-04
 
             <div class="dp-action-btn-texts">
 
+
+
               <span class="dp-action-label-ja">重量</span>
+
+
 
               <span class="sub dp-action-label-vi">Khối lượng</span>
 
+
+
             </div>
+
+
 
           </button>
 
@@ -11323,15 +11220,27 @@ Created: 2026-02-04
 
             <div class="dp-action-btn-texts">
 
+
+
               <span class="dp-action-label-ja">廃棄</span>
+
+
 
               <span class="sub dp-action-label-vi">Hủy khuôn</span>
 
+
+
             </div>
+
+
 
           </button>
 
+
+
           </div>
+
+
 
           <div style="margin-top: 16px;">
             <div style="font-size:11.5px; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
@@ -11408,7 +11317,7 @@ Created: 2026-02-04
 
 
 
-        if (this.currentTab !== 'info') return
+        if (this.currentTab !== 'info' && (!this._preview || !this._preview.open)) return;
 
 
 
@@ -11448,7 +11357,28 @@ Created: 2026-02-04
 
 
 
-        // (A) Hydrate thumb chính (khung ảnh lớn bên trái)
+        // (0) Hydrate Tray Thumbnail trong tab Thông tin chính
+        try {
+          const trayPlaceholders = document.querySelectorAll('[data-dp-tray-thumb-placeholder]');
+          for (let i = 0; i < trayPlaceholders.length; i++) {
+            const ph = trayPlaceholders[i];
+            const tId = ph.getAttribute('data-dp-tray-thumb-placeholder');
+            if (!tId) continue;
+            // Xóa attribute để không hydrate lại nhiều lần
+            ph.removeAttribute('data-dp-tray-thumb-placeholder');
+            
+            // Gọi lấy thumbnail
+            if (typeof window.DevicePhotoStore.getThumbnailUrl === 'function') {
+              window.DevicePhotoStore.getThumbnailUrl('tray', tId).then(tUrl => {
+                if (tUrl) {
+                  ph.innerHTML = `<img src="${tUrl}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`;
+                }
+              }).catch(e => { /* ignore */ });
+            }
+          }
+        } catch(e) {}
+
+        // (A) Hydrate tất cả các khung ảnh lớn (Main Detail Panel + Preview Modal)
 
 
 
@@ -11456,27 +11386,55 @@ Created: 2026-02-04
 
 
 
-          if (this.currentItem) {
+          const imgs = document.querySelectorAll('img[data-dp-thumb-img="1"]');
 
 
 
-            const img = this.panel.querySelector('img[data-dp-thumb-img="1"]');
+          for (let i = 0; i < imgs.length; i++) {
 
 
 
-            const placeholder = this.panel.querySelector('[data-dp-thumb-placeholder="1"]');
+            const img = imgs[i];
 
 
 
+            // Lấy container để ẩn/hiện placeholder tương ứng
 
 
 
-
-            if (img) {
-
+            const container = img.closest('.modal-section') || img.parentElement;
 
 
-              const deviceId = (this.currentItemType === 'mold')
+
+            const placeholder = container ? container.querySelector('[data-dp-thumb-placeholder="1"]') : null;
+
+
+
+            // Lấy ID từ dataset của chính thẻ img (đã được ghi bởi renderDesktopPhotoPreview)
+
+
+
+            let dtype = img.dataset.dpDeviceType || '';
+
+
+
+            let deviceId = img.dataset.dpDeviceId || '';
+
+
+
+            // Fallback nếu không có dataset (trường hợp cũ)
+
+
+
+            if (!deviceId && this.currentItem) {
+
+
+
+              dtype = this.currentItemType || 'mold';
+
+
+
+              deviceId = (dtype === 'mold')
 
 
 
@@ -11484,139 +11442,127 @@ Created: 2026-02-04
 
 
 
-                : (this.currentItem.CutterID || this.currentItem.CutterNo)
+                : (this.currentItem.CutterID || this.currentItem.CutterNo);
 
 
 
+            }
 
 
 
 
-              if (deviceId) {
 
 
 
-                let picked = null;
+            if (deviceId && dtype) {
 
 
 
-                if (typeof window.DevicePhotoStore.getThumbnailForDevice === 'function') {
+              let picked = null;
 
 
 
-                  picked = await window.DevicePhotoStore.getThumbnailForDevice(this.currentItemType, String(deviceId), { state: 'active' });
+              // IMPORTANT: Only fetch the original high-res photo for fullUrl, NEVER use the thumbnail record
 
 
 
-                }
+              if (typeof window.DevicePhotoStore.getLatestActivePhotoForDevice === 'function') {
 
 
 
-                if (!picked && typeof window.DevicePhotoStore.getLatestActivePhotoForDevice === 'function') {
+                picked = await window.DevicePhotoStore.getLatestActivePhotoForDevice(dtype, String(deviceId));
 
 
 
-                  picked = await window.DevicePhotoStore.getLatestActivePhotoForDevice(this.currentItemType, String(deviceId));
+              }
 
 
 
-                }
 
 
 
 
+              const thumbUrl = await window.DevicePhotoStore.getThumbnailUrl(dtype, String(deviceId));
 
 
 
-                const thumbUrl = await window.DevicePhotoStore.getThumbnailUrl(this.currentItemType, String(deviceId));
+              const fullUrl = picked ? String(picked.publicurl || picked.publicUrl || picked.public_url || '') : '';
 
 
 
+              const photoId = picked ? String(picked.id || '') : '';
 
 
 
 
-                const fullUrl = picked ? String(picked.publicurl || picked.publicUrl || picked.public_url || '') : '';
 
 
 
-                const photoId = picked ? String(picked.id || '') : '';
+              img.dataset.dpFullUrl = fullUrl;
 
 
 
+              img.dataset.dpPhotoId = photoId;
 
 
 
+              img.dataset.dpDeviceType = String(dtype || '');
 
-                img.dataset.dpFullUrl = fullUrl;
 
 
+              img.dataset.dpDeviceId = String(deviceId || '');
 
-                img.dataset.dpPhotoId = photoId;
 
 
 
-                img.dataset.dpDeviceType = String(this.currentItemType || '');
 
 
 
-                img.dataset.dpDeviceId = String(deviceId || '');
+              if (!thumbUrl) {
 
 
 
+                try { img.removeAttribute('src'); } catch (e) { }
 
 
 
+                img.style.opacity = '0';
 
-                if (!thumbUrl) {
 
 
+                if (placeholder) {
 
-                  try { img.removeAttribute('src'); } catch (e) { }
 
 
+                  placeholder.style.display = 'flex';
 
-                  img.style.opacity = '0';
 
 
+                  placeholder.innerHTML = `
 
-                  if (placeholder) {
 
 
+                    <div data-dp-photo-upload="1" data-dp-device-type="${this.escapeHtml(dtype)}" data-dp-device-id="${this.escapeHtml(deviceId || '')}" style="display:flex;gap:10px;align-items:center">
 
-                    placeholder.style.display = 'flex';
 
 
+                      <i class="fas fa-cloud-upload-alt" style="opacity:.65"></i>
 
-                    placeholder.innerHTML = `
 
 
+                      <div>
 
-                      <div data-dp-photo-upload="1" style="display:flex;gap:10px;align-items:center">
 
 
+                        <div>この設備には写真がありません。ここをクリックしてアップロードしてください。</div>
 
-                        <i class="fas fa-cloud-upload-alt" style="opacity:.65"></i>
 
 
+                        <div style="font-size:12px;opacity:.90;font-weight:800">
 
-                        <div>
 
 
-
-                          <div>この設備には写真がありません。ここをクリックしてアップロードしてください。</div>
-
-
-
-                          <div style="font-size:12px;opacity:.90;font-weight:800">
-
-
-
-                            Chưa có ảnh cho thiết bị này, hãy bấm vào đây để upload ảnh.
-
-
-
-                          </div>
+                          写真なし。クリックして撮影/アップロード (Chưa có ảnh. Bấm vào đây để tải/chụp ảnh)
 
 
 
@@ -11628,51 +11574,58 @@ Created: 2026-02-04
 
 
 
-                    `;
+                    </div>
 
 
 
-                  }
-
-
-
-                } else {
-
-
-
-                  img.style.opacity = '0';
-
-
-
-                  if (placeholder) placeholder.style.display = 'flex';
-
-
-
-
-
-
-
-                  img.onload = function () {
-
-
-
-                    img.style.opacity = '1';
-
-
-
-                    if (placeholder) placeholder.style.display = 'none';
-
-
-
-                  };
-
-
-
-                  img.src = thumbUrl;
+                  `;
 
 
 
                 }
+
+
+
+              } else {
+
+
+
+                img.style.opacity = '0';
+
+
+
+                if (placeholder) placeholder.style.display = 'flex';
+
+
+
+
+
+
+
+                img.onload = function () {
+
+
+
+                  img.style.opacity = '1';
+
+
+
+                  if (placeholder) placeholder.style.display = 'none';
+
+
+
+                };
+
+
+
+                const url = this.findFirstPhotoUrl(this.currentItem);
+
+
+
+                const code = (dtype === 'cutter') ? this.safeText(this.currentItem.CutterNo || this.currentItem.CutterID) : this.safeText(this.currentItem.MoldCode || this.currentItem.MoldID);
+
+
+                img.src = thumbUrl;
 
 
 
@@ -11873,17 +11826,7 @@ Created: 2026-02-04
 
 
     findFirstPhotoUrl(item) {
-
-
-
       if (!item) return '';
-
-
-
-
-
-
-
       const candidates = [
 
 
@@ -12137,41 +12080,12 @@ Created: 2026-02-04
 
 
     renderDesktopPhotoPreview(item) {
-
-
-
       const isCutter = !!(item && (item.CutterID || item.CutterNo || item.CutterName || item.CutterDesignCode));
-
-
-
       const title = isCutter ? '抜型写真 / Ảnh dao cắt' : '金型写真 / Ảnh khuôn';
-
-
-
-
-
-
-
       const url = this.findFirstPhotoUrl(item);
-
-
-
-      const code = isCutter
-
-
-
-        ? this.safeText(item.CutterNo || item.CutterID)
-
-
-
-        : this.safeText(item.MoldCode || item.MoldID);
-
-
-
-
-
-
-
+      const code = isCutter ? this.safeText(item.CutterNo || item.CutterID) : this.safeText(item.MoldCode || item.MoldID);
+      const dtype = isCutter ? 'cutter' : 'mold';
+      const did = isCutter ? (item.CutterID || item.CutterNo) : (item.MoldID || item.MoldCode);
       const hasCsvUrl = !!(url && String(url).trim());
 
 
@@ -12213,13 +12127,9 @@ Created: 2026-02-04
 
 
             <img data-dp-thumb-img="1"
-
-
-
+                data-dp-device-type="${this.escapeHtml(dtype)}"
+                data-dp-device-id="${this.escapeHtml(did || '')}"
                 src=""
-
-
-
                 alt=""
 
 
@@ -12300,7 +12210,7 @@ Created: 2026-02-04
 
 
 
-              <div data-dp-photo-upload="1" style="display:flex;gap:10px;align-items:center;max-width:360px">
+              <div data-dp-photo-upload="1" data-dp-device-type="${this.escapeHtml(dtype)}" data-dp-device-id="${this.escapeHtml(did || '')}" style="display:flex;gap:10px;align-items:center;max-width:360px">
 
 
 
@@ -13323,7 +13233,7 @@ Created: 2026-02-04
       for (var i = 0; i < tLogs.length; i++) {
         var r = tLogs[i];
         if (isRowForItemByIds(r, mold)) {
-          r.timeMs = parseTimeAny(pick(r, ['DateEntry', 'UpdatedDate', 'CreatedDate', 'RequestedDate', 'SentDate', 'ReceivedDate']));
+          r.timeMs = parseTimeAny(pick(r, ['UpdatedAt', 'DateEntry', 'UpdatedDate', 'CreatedDate', 'RequestedDate', 'SentDate', 'ReceivedDate']));
           validTLogs.push(r);
         }
       }
@@ -13332,20 +13242,8 @@ Created: 2026-02-04
         var tRow = validTLogs[0];
         hasTeflon = true;
         teflonStatus = normId(tRow.TeflonStatus || tRow.Status);
-        teflonDate = formatDateOnly(pick(tRow, ['DateEntry', 'UpdatedDate', 'CreatedDate', 'RequestedDate', 'SentDate', 'ReceivedDate']));
+        teflonDate = formatDateOnly(pick(tRow, ['UpdatedAt', 'DateEntry', 'UpdatedDate', 'CreatedDate', 'RequestedDate', 'SentDate', 'ReceivedDate']));
 
-        if (teflonStatus.indexOf('済') >= 0 || teflonStatus.indexOf('受領') >= 0 || /completed|coated/i.test(teflonStatus)) {
-          teflonStatus = '完了 (Hoàn tất)';
-          teflonBadge = `background: #dcfce7; color: #047857; border: 1px solid rgba(0,0,0,0.05);`; // Green
-        } else if (teflonStatus.indexOf('中') >= 0 || teflonStatus.indexOf('送付') >= 0 || /sent|processing/i.test(teflonStatus)) {
-          teflonStatus = '加工中 (Đang mạ)';
-          teflonBadge = `background: #ccfbf1; color: #0f766e; border: 1px solid rgba(0,0,0,0.05);`; // Teal/Cyan
-        } else if (teflonStatus.indexOf('依頼') >= 0 || teflonStatus.indexOf('待') >= 0 || teflonStatus.indexOf('承') >= 0 || /requested|pending|approved/i.test(teflonStatus)) {
-          teflonStatus = '処理依頼 (Yêu cầu Mạ)';
-          teflonBadge = `background: #ffedd5; color: #c2410c; border: 1px solid rgba(0,0,0,0.05);`; // Orange
-        } else {
-          teflonBadge = `background: #f1f5f9; color: #475569; border: 1px solid rgba(0,0,0,0.05);`; // Gray
-        }
       }
 
       // 2. SHIPPING
@@ -13357,10 +13255,11 @@ Created: 2026-02-04
       for (var j = 0; j < sLogs.length; j++) {
         var sr = sLogs[j];
         if (isRowForItemByIds(sr, mold)) {
-          sr.timeMs = parseTimeAny(pick(sr, ['ShipDate', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
+          sr.timeMs = parseTimeAny(pick(sr, ['UpdatedAt', 'ShipDate', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
           validSLogs.push(sr);
         }
       }
+
       if (validSLogs.length > 0) {
         validSLogs.sort((a, b) => (b.timeMs || 0) - (a.timeMs || 0));
         var sRow = validSLogs[0];
@@ -13381,7 +13280,22 @@ Created: 2026-02-04
         };
 
         transStatus = `${colorCompany(fCo)} <i class="fas fa-long-arrow-alt-right" style="color:#94a3b8; font-size:11px; margin:0 4px;"></i> ${colorCompany(tCo)}`;
-        transDate = formatDateOnly(pick(sRow, ['ShipDate', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
+        transDate = formatDateOnly(pick(sRow, ['UpdatedAt', 'ShipDate', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
+      }
+
+      if (hasTeflon) {
+        if ((teflonStatus.indexOf('済') >= 0 && teflonStatus.indexOf('承認') === -1) || teflonStatus.indexOf('受領') >= 0 || /completed|coated/i.test(teflonStatus)) {
+          teflonStatus = '完了 (Hoàn tất)';
+          teflonBadge = `background: #dcfce7; color: #047857; border: 1px solid rgba(0,0,0,0.05);`; // Green
+        } else if (teflonStatus.indexOf('中') >= 0 || teflonStatus.indexOf('送付') >= 0 || /sent|processing/i.test(teflonStatus)) {
+          teflonStatus = '加工中 (Đang mạ)';
+          teflonBadge = `background: #ccfbf1; color: #0f766e; border: 1px solid rgba(0,0,0,0.05);`; // Teal/Cyan
+        } else if (teflonStatus.indexOf('依頼') >= 0 || teflonStatus.indexOf('待') >= 0 || teflonStatus.indexOf('承') >= 0 || /requested|pending|approved/i.test(teflonStatus)) {
+          teflonStatus = '処理依頼 (Yêu cầu Mạ)';
+          teflonBadge = `background: #ffedd5; color: #c2410c; border: 1px solid rgba(0,0,0,0.05);`; // Orange
+        } else {
+          teflonBadge = `background: #f1f5f9; color: #475569; border: 1px solid rgba(0,0,0,0.05);`; // Gray
+        }
       }
 
       // 3. LOCATION
@@ -13393,7 +13307,7 @@ Created: 2026-02-04
       for (var k = 0; k < lLogs.length; k++) {
         var lr = lLogs[k];
         if (isRowForItemByIds(lr, mold)) {
-          lr.timeMs = parseTimeAny(pick(lr, ['DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
+          lr.timeMs = parseTimeAny(pick(lr, ['UpdatedAt', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
           validLLogs.push(lr);
         }
       }
@@ -13404,7 +13318,7 @@ Created: 2026-02-04
         var oldR = normId(lRow.OldRackLayer) || '-';
         var newR = normId(lRow.NewRackLayer) || '-';
         locStatus = `${escapeHtml(oldR)} <i class="fas fa-long-arrow-alt-right" style="color:#94a3b8; font-size:11px; margin:0 4px;"></i> ${escapeHtml(newR)}`;
-        locDate = formatDateOnly(pick(lRow, ['DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
+        locDate = formatDateOnly(pick(lRow, ['UpdatedAt', 'DateEntry', 'Timestamp', 'Date', 'CreatedAt']));
       }
 
       return `
@@ -14308,11 +14222,11 @@ Created: 2026-02-04
 
 
 
-        const moldId = this.normId(item?.MoldID ?? item?.moldId ?? item?.MoldCode);
+        const moldId = this.normId(item?.MoldID ?? item?.moldId ?? item?.MoldCode) || 
+                       this.normId(item?.CutterID ?? item?.CutterNo ?? item?.CutterCode) || 
+                       this.normId(item?.TrayID ?? item?.TrayCode);
 
-
-
-        if (!moldId) return { class: 'status-unknown', icon: 'fas fa-bug', textShort: 'ERR: ' + e.message, lastConfirmDateText: 'ERR', isExpired: false };
+        if (!moldId) return { class: 'status-unknown', icon: 'fas fa-question-circle', textShort: 'ID Missing', lastConfirmDateText: '-', isExpired: false };
 
 
 
@@ -14570,13 +14484,9 @@ Created: 2026-02-04
 
 
       const isMold = (type === 'mold');
-
-
-
+      const isTray = (type === 'tray');
+      const isCutter = (type === 'cutter' || type === 'blade');
       const e = (v) => this.escapeHtml(v);
-
-
-
       const safeText = (v) => (!v || String(v).trim() === '') ? '-' : String(v).trim();
 
 
@@ -14705,7 +14615,7 @@ Created: 2026-02-04
 
 
 
-        const weightRaw = item.MoldWeightModified ?? item.MoldWeight ?? this.pick(design, ['MoldDesignWeight']) ?? design?.DesignWeight ?? item.Weight;
+        const weightRaw = item.MoldWeight ?? this.pick(design, ['MoldDesignWeight']) ?? design?.DesignWeight ?? item.Weight;
 
 
 
@@ -14999,7 +14909,23 @@ Created: 2026-02-04
 
 
 
-      const row3 = [{ label: this.biLabel('トレイ情報(指示書)', 'Thông tin khay (từ chỉ thị)'), rawValue: trayInfoInstruction }];
+            let trayIdForPhoto = '';
+      if (isTray) trayIdForPhoto = safeText(item.TrayID || item.ID);
+      else trayIdForPhoto = safeText(item.TrayID || item.TrayCode);
+
+      const trayPhotoHtml = (trayIdForPhoto && trayIdForPhoto !== '-' && trayIdForPhoto !== '---') ? `
+        <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+          <div data-dp-tray-thumb-placeholder="${trayIdForPhoto}" style="width:48px;height:48px;border-radius:6px;background:var(--bg-sidebar,#f8fafc);border:1px solid var(--border-color,#e5e9f2);display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-shrink:0;overflow:hidden;">
+            <i class="fas fa-box" style="font-size:20px;"></i>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-weight:600;">${trayInfoInstruction}</div>
+            <div style="font-size:10px;color:var(--text-muted,#64748b);">ID: ${trayIdForPhoto}</div>
+          </div>
+        </div>
+      ` : trayInfoInstruction;
+
+      const row3 = [{ label: this.biLabel('トレイ情報(指示書)', 'Thông tin khay (từ chỉ thị)'), rawValue: trayPhotoHtml }];
 
 
 
@@ -15464,36 +15390,73 @@ Created: 2026-02-04
 
 
           <div class="dp-overview-rows">
+            ${(() => {
+              let rowsHtml = '';
+              if (isCutter) {
+                const cutlineXY = `${this.safeText(item.CutlineLength || item.CutLength)} × ${this.safeText(item.CutlineWidth || item.CutWidth)}`;
+                const postCutXY = `${this.safeText(item.PostCutLength)} × ${this.safeText(item.PostCutWidth)}`;
+                const cutterLWH = `${this.safeText(item.CutterLength)} × ${this.safeText(item.CutterWidth)} × ${this.safeText(item.CutterHeight)}`;
+                
+                const cutterRow2 = [
+                  { label: this.biLabel('抜型種類', 'Kiểu dao cắt'), rawValue: this.safeText(item.CutterType) },
+                  { label: this.biLabel('製造日', 'Ngày sản xuất'), rawValue: formatToJPDate(item.CutterManufactureDate) }
+                ];
+                const cutterRow3 = [
+                  { label: this.biLabel('抜刃数', 'Số lưỡi dao'), rawValue: this.safeText(item.BladeCount) },
+                  { label: this.biLabel('ピッチ (mm)', 'Bước dập'), rawValue: this.safeText(item.Pitch) }
+                ];
+                const cutterRow4 = [
+                  { label: this.biLabel('対応樹脂', 'Chuyên cắt nhựa'), rawValue: this.safeText(item.PlasticCutType || item.PlasticType) },
+                  { label: this.biLabel('PPクッション', 'Dùng PP đệm'), rawValue: this.safeText(item.PPcushionUse) }
+                ];
+                const cutterRow5 = [
+                  { label: this.biLabel('カットライン (mm)', 'Kích thước cắt (Cutline)'), rawValue: cutlineXY },
+                  { label: this.biLabel('製品仕上り (mm)', 'Kích thước SP sau cắt'), rawValue: postCutXY }
+                ];
+                const cutterRow6 = [
+                  { label: this.biLabel('抜型寸法 (L×W×H)', 'Kích thước dao (mm)'), rawValue: cutterLWH },
+                  { label: this.biLabel('厚み (mm)', 'Độ dày (Thickness)'), rawValue: this.safeText(item.CutterThickness) }
+                ];
+                const cutterRow7 = [
+                  { label: this.biLabel('角R', 'Bo góc (R)'), rawValue: this.safeText(item.CutterCorner) },
+                  { label: this.biLabel('C面取り', 'Vát cạnh (C)'), rawValue: this.safeText(item.CutterChamfer) }
+                ];
+                const cutterRow8 = [
+                  { label: this.biLabel('使用状態', 'Trạng thái sử dụng'), rawValue: this.safeText(item.UsageStatus) },
+                  { label: this.biLabel('刃の入り', 'Cutter Entry'), rawValue: this.safeText(item.CutterEntry) }
+                ];
+                const cutterRow9 = [
+                  { label: this.biLabel('抜型詳細', 'Chi tiết dao cắt'), rawValue: this.safeText(item.CutterDetail) }
+                ];
+                const cutterRow10 = [
+                  { label: this.biLabel('備考', 'Ghi chú dao'), rawValue: this.safeText(item.CutterNote) }
+                ];
+                const cutterRow11 = [
+                  { label: this.biLabel('最終更新', 'Cập nhật lần cuối'), rawValue: `${formatToJPDate(item.UpdatedAt)} bởi ${this.safeText(item.UpdatedBy)}` }
+                ];
 
-
-
-            ${renderGrid(row1, 'row-1col')}
-
-
-
-            ${renderGrid(row3, 'row-1col')}
-
-
-
-            ${renderGrid(row4, 'row-1col')}
-
-
-
-            ${renderGrid(row5, 'row-2col')}
-
-
-
-            ${renderGrid(row6, 'row-2col')}
-
-
-
-            ${renderGrid(row7, 'row-2col')}
-
-
-
-            ${renderGrid(row8, 'row-2col')}
-
-
+                rowsHtml += renderGrid(row1, 'row-1col');
+                rowsHtml += renderGrid(cutterRow2, 'row-2col');
+                rowsHtml += renderGrid(cutterRow3, 'row-2col');
+                rowsHtml += renderGrid(cutterRow4, 'row-2col');
+                rowsHtml += renderGrid(cutterRow5, 'row-2col');
+                rowsHtml += renderGrid(cutterRow6, 'row-2col');
+                rowsHtml += renderGrid(cutterRow7, 'row-2col');
+                rowsHtml += renderGrid(cutterRow8, 'row-2col');
+                if (item.CutterDetail) rowsHtml += renderGrid(cutterRow9, 'row-1col');
+                if (item.CutterNote) rowsHtml += renderGrid(cutterRow10, 'row-1col');
+                if (item.UpdatedAt || item.UpdatedBy) rowsHtml += renderGrid(cutterRow11, 'row-1col');
+              } else {
+                rowsHtml += renderGrid(row1, 'row-1col');
+                rowsHtml += renderGrid(row3, 'row-1col');
+                rowsHtml += renderGrid(row4, 'row-1col');
+                rowsHtml += renderGrid(row5, 'row-2col');
+                rowsHtml += renderGrid(row6, 'row-2col');
+                rowsHtml += renderGrid(row7, 'row-2col');
+                rowsHtml += renderGrid(row8, 'row-2col');
+              }
+              return rowsHtml;
+            })()}
 
           </div>
 
@@ -15615,7 +15578,7 @@ Created: 2026-02-04
 
 
 
-      const weightRaw = mold?.MoldWeightModified ?? this.pick(design, ['MoldDesignWeight']);
+      const weightRaw = mold?.MoldWeight ?? this.pick(design, ['MoldDesignWeight']) ?? design?.DesignWeight ?? mold?.Weight;
 
 
 
@@ -17471,7 +17434,7 @@ Created: 2026-02-04
 
 
 
-      const weightRaw = mold?.MoldWeightModified ?? this.pick(design, ['MoldDesignWeight']);
+      const weightRaw = mold?.MoldWeight ?? this.pick(design, ['MoldDesignWeight']) ?? design?.DesignWeight ?? mold?.Weight;
 
 
 
@@ -21751,6 +21714,32 @@ Created: 2026-02-04
 
 
 
+    renderTrayPhotosTab() {
+      const mod = this.getTabModule('trayphotos');
+      if (mod && typeof mod.render === 'function') {
+        return mod.render(this);
+      }
+      return `
+        <div class="modal-section">
+          <div class="section-header">
+            <i class="fas fa-box"></i>
+            <span>Ảnh khay</span>
+          </div>
+          <div class="info-message">
+            Tab Ảnh khay đã được tách thành module riêng.
+          </div>
+        </div>
+      `;
+    }
+
+    bindTrayPhotosTab(container) {
+      const mod = this.getTabModule('trayphotos');
+      if (mod && typeof mod.bind === 'function') {
+        try { mod.bind(this, container); } catch (e) { /* ignore */ }
+        return;
+      }
+    }
+
     renderCommentsTab() {
 
 
@@ -22199,7 +22188,7 @@ Created: 2026-02-04
 
 
 
-            <p class="no-data">Không xác định được khuôn trung tâm để hiển thị.</p>
+            <p class="no-data">表示する中心金型が特定できません。 (Không xác định được khuôn trung tâm để hiển thị.)</p>
 
 
 
@@ -22971,7 +22960,7 @@ Created: 2026-02-04
 
 
 
-        rows = `<p class="no-data">Không có dữ liệu vận chuyển</p>`;
+        rows = `<p class="no-data">輸送データなし (Không có dữ liệu vận chuyển)</p>`;
 
 
 

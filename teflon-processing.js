@@ -1,4 +1,4 @@
-// v9.0.3
+// v10.0.0-PubSub
 /**
 
  * teflon-processing.js - V2
@@ -235,27 +235,23 @@
 
 
     TeflonProcessing.prototype.determineState = function (logs) {
-
         if (!logs || logs.length === 0) return { state: 'NONE', log: null };
 
         var latest = logs[0];
-
         var s = String(latest.TeflonStatus || '').trim().toLowerCase();
 
+        if (s.includes('承認待') || s.includes('requested') || s === 'pending') return { state: 'REQUESTED', log: latest };
+        if (s.includes('承認済') || s.includes('approved')) return { state: 'APPROVED', log: latest };
+        if (s.includes('加工中') || s.includes('sent') || s === 'processing') return { state: 'SENT', log: latest };
+        if (s.includes('加工済') || s.includes('completed') || s === 'received') return { state: 'NONE', log: null }; // Finished cycle
 
-
-        if (s === 'requested' || s === 'pending') return { state: 'REQUESTED', log: latest };
-
-        if (s === 'approved') return { state: 'APPROVED', log: latest };
-
-        if (s === 'sent') return { state: 'SENT', log: latest };
-
-        if (s === 'completed' || s === 'received') return { state: 'NONE', log: null }; // Finished cycle
-
-
+        // Fallback for single characters or truncated MS Access strings
+        if (s.includes('待')) return { state: 'REQUESTED', log: latest };
+        if (s.includes('承')) return { state: 'APPROVED', log: latest };
+        if (s.includes('進') || s.includes('発送')) return { state: 'SENT', log: latest };
+        if (s.includes('完') || (s.includes('済') && !s.includes('承認'))) return { state: 'NONE', log: null };
 
         return { state: 'NONE', log: null };
-
     };
 
 
@@ -332,13 +328,20 @@
 
         this.currentState = 'NONE';
 
-        if (s === 'requested' || s === 'pending') this.currentState = 'REQUESTED';
+        if (s.includes('承認待') || s.includes('requested') || s === 'pending') this.currentState = 'REQUESTED';
 
-        if (s === 'approved') this.currentState = 'APPROVED';
+        if ((s.includes('承認済') || s.includes('approved')) && !s.includes('承認待')) this.currentState = 'APPROVED';
 
-        if (s === 'sent') this.currentState = 'SENT';
+        if (s.includes('加工中') || s.includes('sent') || s === 'processing') this.currentState = 'SENT';
 
-        if (s === 'completed' || s === 'received') this.currentState = 'COMPLETED';
+        if (s.includes('加工済') || s.includes('completed') || s === 'received') this.currentState = 'COMPLETED';
+
+        if (this.currentState === 'NONE') {
+            if (s.includes('待')) this.currentState = 'REQUESTED';
+            else if (s.includes('承')) this.currentState = 'APPROVED';
+            else if (s.includes('進') || s.includes('発送')) this.currentState = 'SENT';
+            else if (s.includes('完') || (s.includes('済') && !s.includes('承認'))) this.currentState = 'COMPLETED';
+        }
 
 
 
@@ -506,6 +509,19 @@
             stOpts += '<option value="' + s + '" ' + sel + '>' + s + '</option>';
         });
 
+        var toIsoDate = function (dStr) {
+            if (!dStr || String(dStr).trim() === '') return '';
+            var d = new Date(dStr);
+            if (isNaN(d.getTime())) return '';
+            var m = d.getMonth() + 1;
+            var day = d.getDate();
+            return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+        };
+
+        var rSupplier = String(tLog.SupplierID || '').trim();
+        var rReqBy = String(tLog.RequestedBy || '').trim();
+        var rSentBy = String(tLog.SentBy || '').trim();
+
         var html = `
             <div id="tefpBackdrop" class="tefp-backdrop"></div>
             <div id="tefpPanelWindow" class="tefp-panel tefp-flat-edit-panel" style="max-width:800px; width:95vw;">
@@ -519,26 +535,43 @@
                     <div class="tefp-info-callout" style="background:#fffbeb; color:#b45309; padding:12px; border-radius:6px; margin-bottom:20px; font-size:13px; border-left:4px solid #f59e0b;">
                         <i class="fas fa-exclamation-triangle"></i> <strong>Lưu ý quan trọng:</strong> Trạng thái chỉnh sửa trực tiếp (Flat Edit) chỉ thay đổi dữ liệu bên trong tệp <code>teflonlog.csv</code>. Nếu bạn thay đổi chi phí hoặc các thông số, hãy chắc chắn. Thao tác này <b>KHÔNG</b> tự động gửi log Hành trình vị trí (Kho).
                     </div>
-                    <div class="tefp-grid-editor" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">TeflonStatus</label><select id="fe_TeflonStatus" class="tefp-select">${stOpts}</select></div>
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">SupplierID</label><select id="fe_SupplierID" class="tefp-select">${supOpts.replace('value="' + self.escapeHtml(tLog.SupplierID) + '"', 'value="' + self.escapeHtml(tLog.SupplierID) + '" selected')}</select></div>
+                    <!-- Phase 1: Request -->
+                    <div style="margin-bottom: 20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; border-left:4px solid #3b82f6;">
+                        <h4 style="color: #1e40af; font-size: 14px; margin-top:0; margin-bottom: 12px; display:flex; align-items:center; gap:6px;"><i class="fas fa-file-signature"></i> 1. Trạng thái & Yêu cầu mạ (Request/Approve)</h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">TeflonStatus</label><select id="fe_TeflonStatus" class="tefp-select">${stOpts}</select></div>
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Nhà cung cấp (Supplier)</label><select id="fe_SupplierID" class="tefp-select">${supOpts.replace('value="' + self.escapeHtml(rSupplier) + '"', 'value="' + self.escapeHtml(rSupplier) + '" selected')}</select></div>
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Người yêu cầu / Duyệt</label><select id="fe_RequestedBy" class="tefp-select">${empOpts.replace('value="' + self.escapeHtml(rReqBy) + '"', 'value="' + self.escapeHtml(rReqBy) + '" selected')}</select></div>
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Ngày Yêu cầu (RequestedDate)</label><input type="date" id="fe_RequestedDate" class="tefp-input" value="${toIsoDate(tLog.RequestedDate)}"></div>
+                            <div class="tefp-form-group" style="grid-column:span 2; margin-bottom:0;"><label class="tefp-label">Loại mạ (CoatingType)</label><input type="text" id="fe_CoatingType" class="tefp-input" value="${this.escapeHtml(tLog.CoatingType || '')}" placeholder="..."></div>
+                            <div class="tefp-form-group" style="grid-column:span 2; margin-bottom:0;"><label class="tefp-label">Lý do mạ (Reason)</label><textarea id="fe_Reason" class="tefp-input tefp-textarea" style="min-height:50px">${this.escapeHtml(tLog.Reason || '')}</textarea></div>
+                        </div>
+                    </div>
 
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">RequestedBy</label><select id="fe_RequestedBy" class="tefp-select">${empOpts.replace('value="' + self.escapeHtml(tLog.RequestedBy) + '"', 'value="' + self.escapeHtml(tLog.RequestedBy) + '" selected')}</select></div>
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">RequestedDate</label><input type="date" id="fe_RequestedDate" class="tefp-input" value="${this.escapeHtml(tLog.RequestedDate || '')}"></div>
+                    <!-- Phase 3: Sent -->
+                    <div style="margin-bottom: 20px; background:#fffbeb; padding:15px; border-radius:8px; border:1px solid #fef3c7; border-left:4px solid #d97706;">
+                        <h4 style="color: #92400e; font-size: 14px; margin-top:0; margin-bottom: 12px; display:flex; align-items:center; gap:6px;"><i class="fas fa-truck"></i> 2. Giao đi mạ (Sent Phase)</h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <div class="tefp-form-group" style="grid-column:span 2; margin-bottom:0;"><label class="tefp-label">Người xuất giao (SentBy)</label><select id="fe_SentBy" class="tefp-select">${empOpts.replace('value="' + self.escapeHtml(rSentBy) + '"', 'value="' + self.escapeHtml(rSentBy) + '" selected')}</select></div>
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Ngày giao đi (SentDate)</label><input type="date" id="fe_SentDate" class="tefp-input" value="${toIsoDate(tLog.SentDate)}"></div>
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Dự kiến nhận (ExpectedDate)</label><input type="date" id="fe_ExpectedDate" class="tefp-input" value="${toIsoDate(tLog.ExpectedDate)}"></div>
+                        </div>
+                    </div>
 
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">SentBy</label><select id="fe_SentBy" class="tefp-select">${empOpts.replace('value="' + self.escapeHtml(tLog.SentBy) + '"', 'value="' + self.escapeHtml(tLog.SentBy) + '" selected')}</select></div>
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">SentDate</label><input type="date" id="fe_SentDate" class="tefp-input" value="${this.escapeHtml(tLog.SentDate || '')}"></div>
+                    <!-- Phase 4: Received -->
+                    <div style="margin-bottom: 20px; background:#ecfdf5; padding:15px; border-radius:8px; border:1px solid #d1fae5; border-left:4px solid #10b981;">
+                        <h4 style="color: #065f46; font-size: 14px; margin-top:0; margin-bottom: 12px; display:flex; align-items:center; gap:6px;"><i class="fas fa-box-open"></i> 3. Nghiệm thu hoàn tất (Received Phase)</h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Ngày nhận về (ReceivedDate)</label><input type="date" id="fe_ReceivedDate" class="tefp-input" value="${toIsoDate(tLog.ReceivedDate)}"></div>
+                            <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Chi phí chốt (TeflonCost JPY)</label><input type="number" id="fe_TeflonCost" class="tefp-input" value="${this.escapeHtml(tLog.TeflonCost || '')}"></div>
+                            <div class="tefp-form-group" style="grid-column: span 2; margin-bottom:0;"><label class="tefp-label">Đánh giá Chất lượng (Quality)</label><input type="text" id="fe_Quality" class="tefp-input" value="${this.escapeHtml(tLog.Quality || '')}"></div>
+                        </div>
+                    </div>
 
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">ExpectedDate</label><input type="date" id="fe_ExpectedDate" class="tefp-input" value="${this.escapeHtml(tLog.ExpectedDate || '')}"></div>
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">ReceivedDate</label><input type="date" id="fe_ReceivedDate" class="tefp-input" value="${this.escapeHtml(tLog.ReceivedDate || '')}"></div>
-
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">TeflonCost (JPY)</label><input type="number" id="fe_TeflonCost" class="tefp-input" value="${this.escapeHtml(tLog.TeflonCost || '')}"></div>
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">CoatingType</label><input type="text" id="fe_CoatingType" class="tefp-input" value="${this.escapeHtml(tLog.CoatingType || '')}"></div>
-
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Reason</label><textarea id="fe_Reason" class="tefp-input">${this.escapeHtml(tLog.Reason || '')}</textarea></div>
-                        <div class="tefp-form-group" style="margin-bottom:0;"><label class="tefp-label">Quality</label><input type="text" id="fe_Quality" class="tefp-input" value="${this.escapeHtml(tLog.Quality || '')}"></div>
-                        
-                        <div class="tefp-form-group" style="grid-column: span 2; margin-bottom:0;"><label class="tefp-label">TeflonNotes</label><textarea id="fe_TeflonNotes" class="tefp-input tefp-textarea">${this.escapeHtml(tLog.TeflonNotes || '')}</textarea></div>
+                    <!-- Notes -->
+                    <div style="background:#f1f5f9; padding:15px; border-radius:8px; border:1px solid #e2e8f0; border-left:4px solid #64748b;">
+                        <h4 style="color: #334155; font-size: 14px; margin-top:0; margin-bottom: 12px; display:flex; align-items:center; gap:6px;"><i class="fas fa-clipboard"></i> 4. Ghi chú chung (Notes)</h4>
+                        <div class="tefp-form-group" style="margin-bottom:0;"><textarea id="fe_TeflonNotes" class="tefp-input tefp-textarea" style="min-height:60px">${this.escapeHtml(tLog.TeflonNotes || '')}</textarea></div>
                     </div>
                 </div>
                 <div class="tefp-header" style="border-top:1px solid #e2e8f0; border-bottom:none; display:flex; justify-content:flex-end; gap:10px; padding:15px 24px;">
@@ -581,9 +614,9 @@
             entry.Reason = document.getElementById('fe_Reason').value;
             entry.Quality = document.getElementById('fe_Quality').value;
             entry.TeflonNotes = document.getElementById('fe_TeflonNotes').value;
-            entry.UpdatedDate = self.getTodayISO();
+            entry.UpdatedAt = self.getTodayISO();
 
-            var allowed = ['TeflonLogID', 'MoldID', 'TeflonStatus', 'RequestedBy', 'RequestedDate', 'SentBy', 'SentDate', 'ExpectedDate', 'ReceivedDate', 'SupplierID', 'CoatingType', 'Reason', 'TeflonCost', 'Quality', 'TeflonNotes', 'CreatedDate', 'UpdatedBy', 'UpdatedDate'];
+            var allowed = ['TeflonLogID', 'MoldID', 'TeflonStatus', 'RequestedBy', 'RequestedDate', 'ApprovedBy', 'ApprovedDate', 'SentBy', 'SentDate', 'ExpectedDate', 'ReceivedDate', 'SupplierID', 'CoatingType', 'Reason', 'TeflonCost', 'Quality', 'TeflonNotes', 'CreatedDate', 'UpdatedBy', 'UpdatedAt'];
             var cleanEntry = {};
             for (var i = 0; i < allowed.length; i++) {
                 if (entry[allowed[i]] !== undefined) cleanEntry[allowed[i]] = entry[allowed[i]];
@@ -606,21 +639,30 @@
                 successMessage: "Đã cập nhật phẳng bảng TeflonLog CSV thành công!",
                 callback: function () {
                     var dataObj = window.DataManager ? window.DataManager.data : (window.ALL_DATA || {});
-                    if (!dataObj.teflonlog) dataObj.teflonlog = [];
-                    var existIdx = dataObj.teflonlog.findIndex(function (x) { return String(x.TeflonLogID) === String(entry.TeflonLogID); });
-                    if (existIdx >= 0) dataObj.teflonlog[existIdx] = entry;
-                    else dataObj.teflonlog.push(entry);
+                    batch.forEach(function (b) {
+                        var tn = b.filename.replace('.csv', '');
+                        if (!dataObj[tn]) dataObj[tn] = [];
+                        if (b.mode === 'update') {
+                            var exId = dataObj[tn].findIndex(function (x) { return String(x[b.idField]) === String(b.idValue); });
+                            if (exId >= 0) dataObj[tn][exId] = b.updates;
+                            else dataObj[tn].push(b.updates);
+                        } else {
+                            dataObj[tn].push(b.updates);
+                        }
+                    });
+
+                    if (window.DataManager && typeof window.DataManager.recompute === 'function') window.DataManager.recompute();
+                    if (self.currentMold) {
+                        let cid = self.currentMold.MoldID || self.currentMold.CutterID;
+                        document.dispatchEvent(new CustomEvent('mcs-data-sync', { detail: { idValue: cid, payload: {} } }));
+                    }
 
                     self.closeModal();
                     setTimeout(function () { self.openModal(self.currentMold); }, 300);
 
-                    var dm = window.DataManager || window.dataManager || (window.App && window.App.dataManager);
-                    if (dm && dm.loadAllData) {
-                        dm.loadAllData().then(function () {
-                            var dp = window.detailPanel || window.DetailPanel || (window.App && window.App.detailPanel);
-                            if (dp && dp.refreshCurrentTab) dp.refreshCurrentTab();
-                        });
-                    }
+                    // Tránh cứng DetailPanel refresh đè nếu PubSub đã kích hoạt ở ngoài
+                    // var dp = window.detailPanel || window.DetailPanel || (window.App && window.App.detailPanel);
+                    // if (dp && dp.refreshCurrentTab) dp.refreshCurrentTab();
                 },
                 errCallback: function () {
                     btn.disabled = false;
@@ -680,6 +722,14 @@
             logs.forEach(function (l) {
 
                 var st = String(l.TeflonStatus || '').toLowerCase();
+
+                // [Heuristic Auto-Heal] Tương tự để hiển thị Timeline chính xác màu sắc
+                if (!st || st === 'active' || st === 'null' || st === 'undefined') {
+                    if (l.ReceivedDate) st = 'completed';
+                    else if (l.SentDate) st = 'sent';
+                    else if (l.ApprovedDate) st = 'approved';
+                    else st = 'requested';
+                }
 
                 var colorCls = 'st-req'; var dotCls = 'dot-req'; var txt = '処理依頼 <span style="font-size:11px;font-weight:normal">(Yêu cầu)</span>';
 
@@ -1284,7 +1334,9 @@
 
             var aDate = document.getElementById('tefp_apprDate');
 
-            if (aDate) entry.UpdatedDate = aDate.value || today;
+            if (aDate) entry.ApprovedDate = aDate.value || today;
+            entry.ApprovedBy = employee;
+            entry.UpdatedAt = today;
 
 
 
@@ -1320,7 +1372,7 @@
 
             if (notes2) entry.TeflonNotes = (entry.TeflonNotes ? entry.TeflonNotes + ' | ' : '') + '[Sent] ' + notes2;
 
-            entry.UpdatedDate = today;
+            entry.UpdatedAt = today;
 
             mode = 'update';
 
@@ -1346,7 +1398,7 @@
 
             if (notes3) entry.TeflonNotes = (entry.TeflonNotes ? entry.TeflonNotes + ' | ' : '') + '[Recv] ' + notes3;
 
-            entry.UpdatedDate = today;
+            entry.UpdatedAt = today;
 
             mode = 'update';
 
@@ -1359,7 +1411,7 @@
 
 
         // BỘ LỌC WHITELIST KHẮT KHE: NGĂN CHẶN 'UNKNOWN FIELDS'
-        var allowed = ['TeflonLogID', 'MoldID', 'TeflonStatus', 'RequestedBy', 'RequestedDate', 'SentBy', 'SentDate', 'ExpectedDate', 'ReceivedDate', 'SupplierID', 'CoatingType', 'Reason', 'TeflonCost', 'Quality', 'TeflonNotes', 'CreatedDate', 'UpdatedBy', 'UpdatedDate'];
+        var allowed = ['TeflonLogID', 'MoldID', 'TeflonStatus', 'RequestedBy', 'RequestedDate', 'ApprovedBy', 'ApprovedDate', 'SentBy', 'SentDate', 'ExpectedDate', 'ReceivedDate', 'SupplierID', 'CoatingType', 'Reason', 'TeflonCost', 'Quality', 'TeflonNotes', 'CreatedDate', 'UpdatedBy', 'UpdatedAt'];
         var cleanEntry = {};
         for (var i = 0; i < allowed.length; i++) {
             if (entry[allowed[i]] !== undefined) cleanEntry[allowed[i]] = entry[allowed[i]];
@@ -1422,7 +1474,9 @@
 
 
 
-            if (entry.TeflonStatus === 'Sent' && !this.isEditMode) {
+            var hasStatusChanged = (this.currentLog && entry.TeflonStatus !== this.currentLog.TeflonStatus) || !this.currentLog;
+
+            if (entry.TeflonStatus === 'Sent' && (!this.isEditMode || hasStatusChanged)) {
 
                 mEntry.KeeperCompany = supplierTargetStr; // Out to Plater
 
@@ -1460,7 +1514,7 @@
 
             }
 
-            else if (entry.TeflonStatus === 'Completed' && !this.isEditMode) {
+            else if (entry.TeflonStatus === 'Completed' && (!this.isEditMode || hasStatusChanged)) {
 
                 mEntry.KeeperCompany = '2'; // In to YSD
 
@@ -1504,6 +1558,17 @@
 
                 batch.push({ filename: 'molds.csv', idField: 'MoldID', idValue: self.currentMold.MoldID, updates: mEntry, mode: 'update' });
 
+                if (mEntry.KeeperCompany) {
+                    var dchMold = {
+                        DataChangeID: 'DCH' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                        TableName: 'molds',
+                        RecordID: self.currentMold.MoldID, RecordIDField: 'MoldID', FieldName: 'KeeperCompany',
+                        OldValue: String(self.currentMold.KeeperCompany || ''), NewValue: String(mEntry.KeeperCompany),
+                        ChangedAt: new Date().toISOString(), ChangedBy: String(employee), ChangeSource: 'teflon_wizard', ChangeNote: 'Keeper Update', IsConflict: 'FALSE'
+                    };
+                    batch.push({ filename: 'datachangehistory.csv', idField: 'DataChangeID', idValue: dchMold.DataChangeID, updates: dchMold, mode: 'insert' });
+                }
+
             }
 
         }
@@ -1528,15 +1593,24 @@
             batch: batch,
             hideSuccessInfo: false,
             callback: function () {
-                var dm = window.DataManager || window.dataManager || (window.App && window.App.dataManager);
-                if (dm && dm.loadAllData) {
-                    dm.loadAllData().then(function () {
-                        var dp = window.detailPanel || window.DetailPanel || (window.App && window.App.detailPanel);
-                        if (dp && dp.refreshCurrentTab) dp.refreshCurrentTab();
-                        if (shouldPromptLocation && window.LocationMove && typeof window.LocationMove.open === 'function') {
-                            setTimeout(function () { window.LocationMove.open(self.currentMold); }, 400);
-                        }
-                    });
+                var dataObj = window.DataManager ? window.DataManager.data : (window.ALL_DATA || {});
+                batch.forEach(function (b) {
+                    var tn = b.filename.replace('.csv', '');
+                    if (!dataObj[tn]) dataObj[tn] = [];
+                    if (b.mode === 'update') {
+                        var exId = dataObj[tn].findIndex(function (x) { return String(x[b.idField]) === String(b.idValue); });
+                        if (exId >= 0) dataObj[tn][exId] = b.updates;
+                        else dataObj[tn].push(b.updates);
+                    } else {
+                        dataObj[tn].push(b.updates);
+                    }
+                });
+
+                var dp = window.detailPanel || window.DetailPanel || (window.App && window.App.detailPanel);
+                if (dp && dp.refreshCurrentTab) dp.refreshCurrentTab();
+
+                if (shouldPromptLocation && window.LocationMove && typeof window.LocationMove.open === 'function') {
+                    setTimeout(function () { window.LocationMove.open(self.currentMold); }, 400);
                 }
             }
         });

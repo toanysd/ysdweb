@@ -4756,6 +4756,10 @@ document.head.appendChild(css);
 
 
 
+    clearFilter: function() {
+      this.resetAll();
+    },
+
     resetAll: function () {
 
       this.core.resetAll();
@@ -5325,4 +5329,5 @@ document.head.appendChild(css);
 
 
 })();
+
 

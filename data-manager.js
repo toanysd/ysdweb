@@ -1,4 +1,4 @@
-// v9.0.2
+// v10.0.0-PubSub-1
 /* ============================================================================
 
    DATA MANAGER v8.1.0
@@ -49,7 +49,8 @@
 
     let currentGithubSha = 'main'; // v8.4.9: Sẽ lấy mã SHA mới nhất để bỏ qua Cache CDN
 
-    const GITHUB_BASE_URL_TEMPLATE = 'https://raw.githubusercontent.com/toanysd/MoldCutterSearch/{SHA}/Data/';
+    // v9.1.5 - Secure Proxy: Giấu link GitHub Private sau Node Proxy
+    const GITHUB_BASE_URL_TEMPLATE = 'https://ysd-moldcutter-backend.onrender.com/api/csv/read/';
 
     const REMOTE_TIMEOUT_MS = 12000;
 
@@ -147,11 +148,12 @@
 
         // New tables
 
-        { key: 'CAV', file: 'CAV.csv', required: false },
+        { key: 'CAV', file: 'cav.csv', required: false },
 
         { key: 'destinations', file: 'destinations.csv', required: false },
 
         { key: 'statuslogs', file: 'statuslogs.csv', required: false },
+        { key: 'auditsession', file: 'auditsession.csv', required: false },
 
         { key: 'teflonlog', file: 'teflonlog.csv', required: false },
 
@@ -282,9 +284,8 @@
             CAV: [],
 
             destinations: [],
-
             statuslogs: [],
-
+            auditsessions: [],
             teflonlog: [],
 
             scraplogs: [],
@@ -860,151 +861,199 @@
 
 
     // =========================================================================
-
-    // DATA LOADING
-
+    // INDEXEDDB CACHE (V10)
     // =========================================================================
-
-
+    const CACHE_DB_NAME = 'MCS_V10_Cache';
+    const CACHE_STORE = 'csv_tables';
+    const LocalCache = {
+        _db: null,
+        init: function () {
+            return new Promise(function (resolve, reject) {
+                if (LocalCache._db) return resolve();
+                var req = indexedDB.open(CACHE_DB_NAME, 1);
+                req.onupgradeneeded = function (e) {
+                    var db = e.target.result;
+                    if (!db.objectStoreNames.contains(CACHE_STORE)) {
+                        db.createObjectStore(CACHE_STORE);
+                    }
+                };
+                req.onsuccess = function (e) { LocalCache._db = e.target.result; resolve(); };
+                req.onerror = function (e) { reject(e); };
+            });
+        },
+        get: function (key) {
+            return new Promise(function (resolve) {
+                if (!LocalCache._db) return resolve(null);
+                try {
+                    var tx = LocalCache._db.transaction(CACHE_STORE, 'readonly');
+                    var store = tx.objectStore(CACHE_STORE);
+                    var req = store.get(key);
+                    req.onsuccess = function () {
+                        var res = req.result;
+                        if (res && res.text) {
+                            var age = Date.now() - (res.ts || 0);
+                            if (age < 5 * 60 * 1000) resolve(res.text); // <= 5 phút
+                            else resolve(null); // Đã hết hạn, force fetch lại
+                        } else {
+                            resolve(null); // Quét lại cache định dạng cũ (string)
+                        }
+                    };
+                    req.onerror = function () { resolve(null); };
+                } catch (e) { resolve(null); }
+            });
+        },
+        set: function (key, value) {
+            return new Promise(function (resolve) {
+                if (!LocalCache._db) return resolve();
+                try {
+                    var tx = LocalCache._db.transaction(CACHE_STORE, 'readwrite');
+                    var store = tx.objectStore(CACHE_STORE);
+                    var req = store.put({ text: value, ts: Date.now() }, key);
+                    req.onsuccess = function () { resolve(); };
+                    req.onerror = function () { resolve(); };
+                } catch (e) { resolve(); }
+            });
+        },
+        clear: function () {
+            return new Promise(function (resolve) {
+                if (!LocalCache._db) return resolve();
+                try {
+                    var tx = LocalCache._db.transaction(CACHE_STORE, 'readwrite');
+                    var req = tx.objectStore(CACHE_STORE).clear();
+                    req.onsuccess = function () { resolve(); };
+                    req.onerror = function () { resolve(); };
+                } catch (e) { resolve(); }
+            });
+        }
+    };
 
     /**
-
      * V8.4.9: Lấy SHA mới nhất từ server để bỏ qua CDN Cache
-
      */
-
     async function fetchLatestSha() {
-
         try {
-
             const controller = new AbortController();
-
             const id = setTimeout(() => controller.abort(), 3000);
-
             const res = await fetch('https://api.github.com/repos/toanysd/MoldCutterSearch/commits/main', {
-
                 signal: controller.signal
-
             });
-
             clearTimeout(id);
-
             if (res.ok) {
-
                 const data = await res.json();
-
                 if (data.sha) currentGithubSha = data.sha;
-
                 console.log('✅ Resolved latest SHA from GitHub:', currentGithubSha);
-
             }
-
         } catch (e) {
-
             console.warn('⚠️ Could not fetch latest SHA from GitHub (timeout/error), falling back to main');
-
             currentGithubSha = 'main';
-
         }
-
     }
 
 
+    // === HELPER: R\u00fat ra base URL c\u1ee7a Backend (v\u00ed d\u1ee5: https://host/api) ===
+    // CIOCONFIG.apiUrl c\u00f3 d\u1ea1ng https://host/api/checklog => c\u1ea7n cat b\u1ecf /checklog
+    function _getDeltaBaseUrl() {
+        try {
+            var raw = (window.CIOCONFIG && window.CIOCONFIG.apiUrl) ? String(window.CIOCONFIG.apiUrl) : '';
+            if (!raw) raw = 'https://ysd-moldcutter-backend.onrender.com/api/checklog';
+            // B\u1ecf \u0111i /checklog ho\u1eb7c /\u0111u\u00f4i kh\u00f4ng ph\u1ea3i /sync
+            var base = raw.replace(/\/checklog\/?$/, '').replace(/\/locationlog\/?$/, '').replace(/\/add-log\/?$/, '');
+            return base; // => 'https://ysd-moldcutter-backend.onrender.com/api'
+        } catch (_e) {
+            return 'https://ysd-moldcutter-backend.onrender.com/api';
+        }
+    }
 
     /**
-
-     * Main entry: Load all CSV files from GitHub
-
+     * Main entry: Load all CSV files from GitHub with Offline IndexDB Cache
      */
+    async function loadAllData(forceRefresh = false) {
+        console.time('[v10] loadAllData');
 
-    async function loadAllData() {
+        await LocalCache.init().catch(e => console.warn('IndexedDB Init Failed', e));
 
-        console.time('[v8.0.3] loadAllData');
-
-
-
-        await fetchLatestSha();
-
-
-
-        const results = await Promise.all(
-
-            CSV_FILES.map(def =>
-
-                fetchCSVWithFallback(def.file, def.required)
-
-                    .then(text => {
-
-                        const data = text ? parseCSV(text) : [];
-
-                        console.log(`✅ ${def.file}: ${data.length} rows`);
-
-                        state.allData[def.key] = data;
-
-                        return true;
-
-                    })
-
-            )
-
-        );
-
-
-
-        if (!results.every(Boolean)) {
-
-            throw new Error('One or more required CSV files failed to load.');
-
+        if (forceRefresh) {
+            await LocalCache.clear();
+            console.log('🧹 Cache cleared. Forcing network fetch.');
+            await fetchLatestSha(); // Chờ lấy nhánh mới nhất nếu quét lại mạng
         }
 
+        const results = await Promise.all(
+            CSV_FILES.map(async function (def) {
+                // V10: Cache Priority
+                if (!forceRefresh) {
+                    var cachedText = await LocalCache.get(def.file);
+                    if (cachedText) {
+                        const data = parseCSV(cachedText);
+                        state.allData[def.key] = data;
+                        console.log(`⚡ Cached [${def.file}]: ${data.length} rows`);
+                        return true;
+                    }
+                }
 
+                // Fallback to fetch
+                return fetchCSVWithFallback(def.file, def.required)
+                    .then(async function (text) {
+                        if (text) {
+                            await LocalCache.set(def.file, text);
+                            const data = parseCSV(text);
+                            state.allData[def.key] = data;
+                            console.log(`✅ Loaded [${def.file}]: ${data.length} rows`);
+                            return true;
+                        }
+                        return !def.required;
+                    });
+            })
+        );
 
-
+        if (!results.every(Boolean)) {
+            throw new Error('One or more required CSV files failed to load.');
+        }
 
         applyWebLatestMerge();
 
-
-
         // Restore pending logs BEFORE processing relationships
-
         PendingCache.restore();
-
-
-
         state.loaded = true;
 
-
-
         // Expose for debugging
-
         window.ALL_DATA = state.allData;
 
-
-
-        console.timeEnd('[v8.0.3] loadAllData');
-
-
+        console.timeEnd('[v10] loadAllData');
 
         // Cleanup old pending logs
-
         PendingCache.cleanup();
 
-
-
         // Fire event for other modules
-
         document.dispatchEvent(new CustomEvent('data-manager:ready'));
 
-
-
         // Also trigger app data update
-
         if (window.App && window.App.triggerDataUpdate) {
-
             window.App.triggerDataUpdate();
-
         }
 
+        // === FIX: Gán globalDataVersion từ server sau khi load xong ===
+        // Cần để Delta Sync polling có điểm gốc đúng (version > 0 mới poll được)
+        try {
+            const baseUrl = _getDeltaBaseUrl();
+            if (baseUrl) {
+                const verResp = await fetch(baseUrl + '/sync/check-version');
+                if (verResp.ok) {
+                    const verJson = await verResp.json();
+                    if (verJson && verJson.version) {
+                        window.globalDataVersion = verJson.version;
+                        console.log('[DataManager] ✅ globalDataVersion synced:', window.globalDataVersion);
+                    }
+                }
+            }
+        } catch (_vErr) { /* Suppress - không block render */ }
+    }
+
+    /**
+     * V10 API: Explicitly wipe cache and force reload from network
+     */
+    async function forceClearCacheAndReload() {
+        return loadAllData(true);
     }
 
 
@@ -1031,11 +1080,12 @@
 
 
 
-            const rawUrl = GITHUB_BASE_URL_TEMPLATE.replace('{SHA}', useBranch) + filename;
+            // Tạm thời bỏ qua cơ chế {SHA} vì Backend Proxy sẽ tự uỷ quyền kéo nhánh main
+            const rawUrl = GITHUB_BASE_URL_TEMPLATE + filename;
 
             const controller = new AbortController();
 
-            const id = setTimeout(() => controller.abort(), 8000); // 8 seconds timeout for large data
+            const id = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout to handle Render cold start
 
 
 
@@ -1069,7 +1119,13 @@
 
                 console.log(`📥 Loaded from GitHub: ${filename}`);
 
-                return await res.text();
+                const text = await res.text();
+
+                if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.toLowerCase().includes('<html')) {
+                    throw new Error(`GitHub backend returned HTML instead of CSV for ${filename} (Auth/Routing Error)`);
+                }
+
+                return text;
 
             }
 
@@ -1115,7 +1171,13 @@
 
                 console.log(`📥 Loaded from local: ${filename}`);
 
-                return await resLocal.text();
+                const textLocal = await resLocal.text();
+
+                if (textLocal.trim().toLowerCase().startsWith('<!doctype html>') || textLocal.toLowerCase().includes('<html')) {
+                    throw new Error(`Local fetch returned HTML instead of CSV for ${filename} (SPA Fallback Trap)`);
+                }
+
+                return textLocal;
 
             }
 
@@ -1183,7 +1245,11 @@
 
 
 
-        const headers = splitCSVLine(lines[0]).map(h => stripQuotes(h.trim()));
+        const headers = splitCSVLine(lines[0]).map(h => {
+            let hv = stripQuotes(h.trim());
+            if (hv === 'MoldWeightModified') hv = 'MoldWeight';
+            return hv;
+        });
 
         const rows = [];
 
@@ -1354,6 +1420,12 @@
 
 
             var fieldName = normHistoryValue(row.FieldName)
+            // Fix legacy FieldName map from datachangehistory.csv
+            if (fieldName === 'MoldWeightModified') fieldName = 'MoldWeight';
+
+            // [V10 Patch] Không cho phép DataChangeHistory ảo ghi đè lên các trường Vị trí & Destination
+            // Nguyên nhân: Wizard ghi trực tiếp thông số xịn vào Molds.csv thông qua Delta Sync. Nếu không block, lịch sử cũ của Extended Editor sẽ đè nát số liệu mới.
+            if (fieldName === 'RackLayerID' || fieldName === 'KeeperCompany') return;
 
             var changedAt = normHistoryValue(row.ChangedAt)
 
@@ -1471,6 +1543,8 @@
 
         d.companies = overlayRowByHistory(d.companies, 'companies', 'CompanyID');
 
+        d.teflonlog = overlayRowByHistory(d.teflonlog, 'teflonlog', 'TeflonLogID');
+
 
 
         // Build lookup maps
@@ -1554,11 +1628,15 @@
 
 
                 const current = teflonLatestByMoldId.get(moldId);
+                const currentId = parseInt(current?.TeflonLogID, 10) || 0;
+                const rowId = parseInt(row?.TeflonLogID, 10) || 0;
 
-                if (!current || getRowTimeMs(row) > getRowTimeMs(current)) {
-
+                if (!current || rowId > currentId) {
                     teflonLatestByMoldId.set(moldId, row);
-
+                } else if (rowId === currentId && rowId === 0) {
+                    if (getRowTimeMs(row) > getRowTimeMs(current)) {
+                        teflonLatestByMoldId.set(moldId, row);
+                    }
                 }
 
             });
@@ -1851,6 +1929,8 @@
                 latestStatusLog: latestLog,
 
 
+
+                latestTeflonLog: latestTeflon,
 
                 latestTeflonLog: latestTeflon,
 
@@ -2238,9 +2318,9 @@
 
         PendingCache,
 
-
-
         loadAllData,
+
+        forceClearCacheAndReload,
 
 
 
@@ -2333,12 +2413,81 @@
 
 
         recompute() {
-
-            applyWebLatestMerge();
-
-            document.dispatchEvent(new CustomEvent('data-manager:updated'));
-
+            if (this._recomputeTimer) clearTimeout(this._recomputeTimer);
+            this._recomputeTimer = setTimeout(() => {
+                applyWebLatestMerge();
+                document.dispatchEvent(new CustomEvent('data-manager:updated'));
+            }, 300); // 300ms để kịp cho mcs-data-sync chạy xong animation scale(1.2) trên results-card
         },
+
+        syncRecordLocally(tb, idField, idValue, payload) {
+            try {
+                if (!state.allData[tb]) return false;
+                let arr = state.allData[tb];
+                let f = arr.find(x => String(x[idField]) === String(idValue));
+                if (f) {
+                    Object.assign(f, payload);
+                } else {
+                    // Nếu không tìm thấy (tức là lệnh Insert log mới), đẩy vào đầu mảng
+                    arr.unshift(payload);
+                }
+
+                if (tb === 'molds' && state.allData['webmolds']) {
+                    let wf = state.allData['webmolds'].find(x => String(x[idField]) === String(idValue));
+                    if (wf) Object.assign(wf, payload);
+                }
+                if (tb === 'cutters' && state.allData['webcutters']) {
+                    let wfc = state.allData['webcutters'].find(x => String(x[idField]) === String(idValue));
+                    if (wfc) Object.assign(wfc, payload);
+                }
+
+                this.recompute();
+
+                // Phát thêm CustomEvent để nháy DOM tức thời nếu ui renderer hỗ trợ bắt mcs-data-sync
+                document.dispatchEvent(new CustomEvent('mcs-data-sync', { detail: { idValue, payload } }));
+                return true;
+            } catch (e) { return false; }
+        },
+
+        startBackgroundDeltaSync(fallbackUrl) {
+            if (this._deltaInterval) return;
+            const POLL = 30000;
+            this._deltaInterval = setInterval(() => {
+                const currentVer = window.globalDataVersion || 0;
+                // Tránh ping khi chưa có version gốc (chưa loadAllData xong)
+                if (!currentVer) return;
+
+                // === FIX: Xây URL từ base server URL thay vì apiUrl của checklog ===
+                const baseUrl = _getDeltaBaseUrl();
+                if (!baseUrl) return;
+                const url = baseUrl + '/sync/delta?since=' + currentVer;
+
+                fetch(url)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (!res) return;
+                        // Luôn cập nhật version nếu server trả về version mới
+                        if (res.version && res.version > currentVer) {
+                            window.globalDataVersion = res.version;
+
+                            if (res.fullReload === true) {
+                                console.warn('🔄 Background Sync: fullReload - gọi loadAllData()');
+                                if (typeof loadAllData === 'function') loadAllData();
+                                return;
+                            }
+
+                            if (res.changes && Array.isArray(res.changes) && res.changes.length > 0) {
+                                console.log(`⚡ Delta Sync: Áp dụng ${res.changes.length} bản vá`);
+                                res.changes.forEach(change => {
+                                    if (change.table && change.idField && change.idValue && change.payload) {
+                                        this.syncRecordLocally(change.table, change.idField, change.idValue, change.payload);
+                                    }
+                                });
+                            }
+                        }
+                    }).catch(() => { /* Suppress background errors */ });
+            }, POLL);
+        }
 
 
 
@@ -2357,29 +2506,30 @@
 
 
     // Auto-initialize on DOM ready
-
-    if (document.readyState === 'loading') {
-
-        document.addEventListener('DOMContentLoaded', () => {
-
-            loadAllData().catch(err => {
-
-                console.error('❌ Failed to load data:', err);
-
-            });
-
-        });
-
-    } else {
-
+    // v9.1.5: Tạm hoãn auto-load nếu có Auth Guard (để auth-module tự kích hoạt sau khi Đăng nhập)
+    function autoInit() {
+        if (typeof window.supabaseClient !== 'undefined' && document.getElementById('login-overlay')) {
+            console.log('⏳ Data Manager: Tạm hoãn loadAllData chờ Auth Guard...');
+            return;
+        }
         loadAllData().catch(err => {
-
             console.error('❌ Failed to load data:', err);
-
         });
-
     }
 
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', autoInit);
+    } else {
+        autoInit();
+    }
+
+    // Khởi động Background Auto-Sync (Kiểm tra version ngầm 30s một lần, cực nhẹ)
+    setTimeout(() => {
+        if (typeof DataManager.startBackgroundDeltaSync === 'function') {
+            console.log('🔄 Data Manager: Auto-Sync nền đã được kích hoạt');
+            DataManager.startBackgroundDeltaSync();
+        }
+    }, 5000);
 
 
     console.log('✅ Data Manager v8.0.3-1 loaded and ready');

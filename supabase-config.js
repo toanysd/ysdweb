@@ -28,14 +28,17 @@
   // [Khắc phục cảnh báo Tracking Prevention / file:///]
   if (window.supabase && typeof window.supabase.createClient === 'function' && !window.supabase._pmPatched) {
     var _origClient = window.supabase.createClient;
-    window.supabase.createClient = function(url, key, options) {
+    window.supabase.createClient = function (url, key, options) {
       var opt = options || {};
       opt.auth = opt.auth || {};
-      if (opt.auth.persistSession === undefined) opt.auth.persistSession = false;
-      if (opt.auth.autoRefreshToken === undefined) opt.auth.autoRefreshToken = false;
-      if (opt.auth.detectSessionInUrl === undefined) opt.auth.detectSessionInUrl = false;
-      
-      opt.auth.storage = { getItem: function(){ return null; }, setItem: function(){}, removeItem: function(){} };
+
+      // Cho phép persistSession, dùng custom storage an toàn
+      opt.auth.storage = {
+        getItem: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+        setItem: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { } },
+        removeItem: function (k) { try { localStorage.removeItem(k); } catch (e) { } }
+      };
+
       return _origClient.call(window.supabase, url, key, opt);
     };
     window.supabase._pmPatched = true;
@@ -124,18 +127,18 @@
         window.NotificationModule.show(type || 'info', msg, ttl);
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Fallback: alert cho lỗi, console cho info/warn
     if ((type || '').toLowerCase() === 'error') {
-      try { alert((ttl ? (ttl + ': ') : '') + msg); } catch (e2) {}
+      try { alert((ttl ? (ttl + ': ') : '') + msg); } catch (e2) { }
       return;
     }
     if ((type || '').toLowerCase() === 'warning') {
-      try { console.warn(ttl + ': ' + msg); } catch (e3) {}
+      try { console.warn(ttl + ': ' + msg); } catch (e3) { }
       return;
     }
-    try { console.log(ttl + ': ' + msg); } catch (e4) {}
+    try { console.log(ttl + ': ' + msg); } catch (e4) { }
   }
 
   function safeJsonParse(s, fallback) {
@@ -193,7 +196,7 @@
       url = trim(localStorage.getItem(LS.url));
       anon = trim(localStorage.getItem(LS.anon));
       setAt = trim(localStorage.getItem(LS.setAt));
-    } catch (e) {}
+    } catch (e) { }
 
     if (!url) url = DEFAULT_SUPABASE_URL;
     if (!anon) anon = DEFAULT_SUPABASE_ANON_KEY;
@@ -250,13 +253,13 @@
       if (rawAuto !== null && rawAuto !== undefined && trim(rawAuto) !== '') {
         autoSend = (trim(rawAuto) === '1' || trim(rawAuto).toLowerCase() === 'true');
       }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       var rawList = localStorage.getItem(LS.photoCcList);
       var parsed = safeJsonParse(rawList, []);
       ccList = uniqEmails(parsed);
-    } catch (e2) {}
+    } catch (e2) { }
 
     return {
       autoSend: !!autoSend,
@@ -334,7 +337,7 @@
         supabaseAnonKey: cfg.supabaseAnonKey,
         setAt: cfg.setAt || nowIso()
       };
-    } catch (e) {}
+    } catch (e) { }
 
     // Nếu các module đã load sẵn, tự init để chạy luôn.
     // (Không ép buộc – nếu chưa có module thì thôi.)
@@ -395,7 +398,7 @@
 
     try {
       document.dispatchEvent(new CustomEvent('supabase-configready', { detail: { config: cfg } }));
-    } catch (e5) {}
+    } catch (e5) { }
 
     return okAny;
   }
@@ -554,15 +557,15 @@
       var prefs = getPhotoMailPrefs();
       // Nếu localStorage chưa có key autoSend, sẽ giữ DEFAULT_AUTO_SEND_MAIL.
       // Ta “ghi” lại để chắc chắn tồn tại.
-      try { localStorage.setItem(LS.photoAutoSend, prefs.autoSend ? '1' : '0'); } catch (e1) {}
+      try { localStorage.setItem(LS.photoAutoSend, prefs.autoSend ? '1' : '0'); } catch (e1) { }
       try {
         if (!localStorage.getItem(LS.photoCcList)) {
           localStorage.setItem(LS.photoCcList, safeJsonStringify(prefs.ccList || []));
         }
-      } catch (e2) {}
+      } catch (e2) { }
 
     } catch (e) {
-      try { console.warn('SupabaseConfig autoInit error:', e); } catch (e3) {}
+      try { console.warn('SupabaseConfig autoInit error:', e); } catch (e3) { }
     }
   }
 
@@ -580,7 +583,7 @@
     document.addEventListener('photo-mailerready', function () {
       ensureAndApply({ interactive: false });
     });
-  } catch (e4) {}
+  } catch (e4) { }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', autoInit);

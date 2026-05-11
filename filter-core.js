@@ -1280,29 +1280,19 @@ Compatibility goals:
 
 
   FilterCore.prototype.saveState = function () {
-
     try {
-
-      localStorage.setItem(this.storageKey, JSON.stringify(this.state));
-
+      sessionStorage.setItem(this.storageKey, JSON.stringify(this.state));
     } catch (e) {
-
       // ignore
-
     }
-
   };
 
 
 
   FilterCore.prototype.restoreState = function () {
-
     try {
-
-      var raw = localStorage.getItem(this.storageKey);
-
+      var raw = sessionStorage.getItem(this.storageKey);
       if (!raw) return;
-
       var parsed = JSON.parse(raw);
 
       if (!parsed) return;
